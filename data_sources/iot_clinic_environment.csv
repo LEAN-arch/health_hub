@@ -1,2 +1,17 @@
-timestamp,clinic_id,room_name,avg_co2_ppm,max_co2_ppm,avg_pm25,voc_index,avg_temp_celsius,avg_humidity_rh,avg_noise_db,waiting_room_occupancy,patient_throughput_per_hour,sanitizer_dispenses_per_hour
-2023-10-25 09:00:00,TJ-ZONA-RIO-C1,WaitingRoom1,850,1100,12,150,23.5,55,60,15,10,5
+timestamp,clinic_id,room_name,avg_co2_ppm,max_co2_ppm,avg_pm25,voc_index,avg_temp_celsius,avg_humidity_rh,avg_noise_db,waiting_room_occupancy,patient_throughput_per_hour,sanitizer_dispenses_per_hour,zone_id
+2023-10-01T09:00:00Z,C01,Waiting Room A,650,700,10.5,120,24.5,55,50,5,8,2,ZoneA
+2023-10-01T09:00:00Z,C01,Consultation 1,550,600,8.2,100,23.0,50,45,2,10,1,ZoneA
+2023-10-01T09:00:00Z,C02,Waiting Room B,800,910,15.3,150,25.0,60,55,8,6,3,ZoneB
+2023-10-01T10:00:00Z,C01,Waiting Room A,710,750,12.1,130,24.7,56,52,7,9,4,ZoneA
+2023-10-01T10:00:00Z,C03,TB Clinic Waiting,950,1150,22.8,180,24.0,58,53,12,5,2,ZoneC
+2023-10-01T10:00:00Z,C03,Consultation TB1,600,680,10.0,110,23.5,52,48,1,7,3,ZoneC
+2023-10-01T11:00:00Z,C02,Waiting Room B,850,980,16.5,160,25.2,61,56,10,7,3,ZoneB
+2023-10-01T11:00:00Z,C04,General Waiting Area,750,820,14.0,140,24.8,57,51,6,0,5,ZoneD
+2023-10-02T09:00:00Z,C01,Waiting Room A,680,720,11.0,125,24.3,54,51,6,0,3,ZoneA
+2023-10-02T09:00:00Z,C02,Consultation 1,500,550,7.5,90,22.8,49,44,1,9,2,ZoneB
+2023-10-02T14:00:00Z,C03,TB Clinic Waiting,1050,1250,25.1,210,23.8,60,58,15,4,1,ZoneC
+2023-10-02T14:00:00Z,C04,General Waiting Area,700,780,13.5,135,24.6,56,50,4,6,4,ZoneD
+2023-10-03T10:00:00Z,C01,Consultation 1,580,640,9.0,105,23.2,51,46,2,11,2,ZoneA
+2023-10-03T15:00:00Z,C02,Waiting Room B,790,900,14.8,148,24.9,59,54,7,5,3,ZoneB
+2023-10-04T09:30:00Z,C03,Consultation TB1,620,700,11.2,115,23.6,53,47,1,8,2,ZoneC
+2023-10-04T11:00:00Z,C04,General Waiting Area,800,880,15.1,155,25.0,58,52,9,7,6,ZoneD
