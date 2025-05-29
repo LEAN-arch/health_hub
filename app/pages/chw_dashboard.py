@@ -3,6 +3,11 @@ import pandas as pd
 import numpy as np
 from utils.data_processor import load_data
 from utils.viz_helper import plot_annotated_line_chart, render_kpi_card, render_traffic_light, plot_treemap
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Mock data
 mock_data = {
@@ -55,10 +60,12 @@ try:
             alert_df["type"].tolist(),  # Convert Series to list
             "Alert Prioritization by Type"
         ), use_container_width=True)
+        logger.info("Rendered treemap for alert prioritization")
     else:
         st.warning("No alert data available for treemap.")
 except Exception as e:
     st.error(f"Error rendering treemap: {str(e)}")
+    logger.error(f"Treemap error: {str(e)}")
 
 # Risk Zones
 st.subheader("High-Risk Zones")
