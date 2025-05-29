@@ -3,7 +3,8 @@ pandas
 geopandas
 plotly
 numpy
+matplotlib  # <<<<<<<<<<<< ADD THIS LINE
 # For tests:
 pytest
 pytest-mock
-# shapely (often a dependency of geopandas, but good to list)
+shapely
