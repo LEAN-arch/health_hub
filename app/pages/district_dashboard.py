@@ -17,11 +17,11 @@ mock_data = {
     "outbreak_trend": [50, 60, 75, 85, 90, 92, 95],
     "anomaly": {"message": "Respiratory Spike", "status": "High", "confidence": 95, "action": "Investigate Zone C"},
     "action_trend": [1.5, 1.4, 1.2, 1.1, 1.0, 1.0, 0.9],
-    "facility_coverage": 70,  # % population within 5km of a facility
+    "facility_coverage": 70,
     "syndromic_correlations": [
-        [1.0, 0.8, 0.3],  # Fever
-        [0.8, 1.0, 0.5],  # Respiratory
-        [0.3, 0.5, 1.0]   # Fatigue
+        [1.0, 0.8, 0.3],
+        [0.8, 1.0, 0.5],
+        [0.3, 0.5, 1.0]
     ]
 }
 
@@ -49,17 +49,25 @@ with col4:
 st.subheader("AI Disease Risk Map")
 if geojson_data:
     try:
+        # Normalize GeoJSON properties (rename 'zone' to 'name')
+        for feature in geojson_data["features"]:
+            if "zone" in feature["properties"] and "name" not in feature["properties"]:
+                feature["properties"]["name"] = feature["properties"].pop("zone")
+                logger.info(f"Renamed 'zone' to 'name' in feature: {feature['properties']['name']}")
+        
         # Validate GeoJSON properties
         for feature in geojson_data["features"]:
-            if "name" not in feature["properties"]:
-                raise KeyError(f"Missing 'name' property in GeoJSON feature: {feature['properties']}")
-            if "risk" not in feature["properties"]:
-                raise KeyError(f"Missing 'risk' property in GeoJSON feature: {feature['properties']}")
-            if "facilities" not in feature["properties"]:
-                raise KeyError(f"Missing 'facilities' property in GeoJSON feature: {feature['properties']}")
+            for prop in ["name", "risk", "facilities"]:
+                if prop not in feature["properties"]:
+                    raise KeyError(f"Missing '{prop}' property in GeoJSON feature: {feature['properties']}")
 
         zone_data = pd.DataFrame([
-            {"name": f["properties"]["name"], "risk": f["properties"]["risk"], "facilities": f["properties"]["facilities"]}
+            {
+                "name": f["properties"]["name"],
+                "risk": f["properties"]["risk"],
+                "facilities": f["properties"]["facilities"],
+                "population": f["properties"].get("population", 0)
+            }
             for f in geojson_data["features"]
         ])
         if not zone_data.empty:
@@ -69,7 +77,8 @@ if geojson_data:
                 "name",
                 "risk",
                 "facilities",
-                "Disease Risk and Health Facilities by Zone"
+                "Disease Risk and Health Facilities by Zone",
+                population_col="population"
             ), use_container_width=True)
         else:
             st.warning("No zone data available for choropleth map.")
