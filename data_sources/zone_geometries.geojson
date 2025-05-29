@@ -1,6 +1,6 @@
 {
   "type": "FeatureCollection",
-  "name": "tijuana_zones_sample",
+  "name": "tijuana_zones_sample_extended",
   "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
   "features": [
     {
