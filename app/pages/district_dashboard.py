@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from utils.data_processor import load_geojson
 from utils.viz_helper import plot_line_chart, render_kpi_card, render_traffic_light, plot_heatmap, plot_choropleth_map
 
@@ -77,15 +78,18 @@ st.plotly_chart(plot_line_chart(
 
 # Syndromic Correlations
 st.subheader("Syndromic Correlations")
-corr_matrix = pd.DataFrame(
-    mock_data['syndromic_correlations'],
-    index=["Fever", "Respiratory", "Fatigue"],
-    columns=["Fever", "Respiratory", "Fatigue"]
-)
-st.plotly_chart(plot_heatmap(
-    corr_matrix,
-    "Syndromic Correlations"
-), use_container_width=True)
+try:
+    corr_matrix = pd.DataFrame(
+        mock_data['syndromic_correlations'],
+        index=["Fever", "Respiratory", "Fatigue"],
+        columns=["Fever", "Respiratory", "Fatigue"]
+    ).astype(float)  # Ensure numeric type
+    st.plotly_chart(plot_heatmap(
+        corr_matrix,
+        "Syndromic Correlations"
+    ), use_container_width=True)
+except Exception as e:
+    st.error(f"Error rendering heatmap: {str(e)}")
 
 # Action Time
 st.subheader("Program Impact")
