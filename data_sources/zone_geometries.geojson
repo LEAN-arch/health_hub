@@ -3,33 +3,53 @@
   "features": [
     {
       "type": "Feature",
-      "properties": { "zone_id": "ZN001" },
-      "geometry": { "type": "Polygon", "coordinates": [[[0,0],[0,10],[10,10],[10,0],[0,0]]]}
+      "properties": { "zone_id": "TJ-ZONA-RIO" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-117.03, 32.53], [-117.01, 32.53], [-117.01, 32.52], [-117.03, 32.52], [-117.03, 32.53]
+        ]]
+      }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "ZN002" },
-      "geometry": { "type": "Polygon", "coordinates": [[[10,0],[10,10],[20,10],[20,0],[10,0]]]}
+      "properties": { "zone_id": "TJ-CENTRO" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-117.04, 32.535], [-117.02, 32.535], [-117.02, 32.525], [-117.04, 32.525], [-117.04, 32.535]
+        ]]
+      }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "ZN003" },
-      "geometry": { "type": "Polygon", "coordinates": [[[0,-10],[0,0],[10,0],[10,-10],[0,-10]]]}
+      "properties": { "zone_id": "TJ-OTAY" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-116.95, 32.54], [-116.93, 32.54], [-116.93, 32.53], [-116.95, 32.53], [-116.95, 32.54]
+        ]]
+      }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "ZN004" },
-      "geometry": { "type": "Polygon", "coordinates": [[[10,-10],[10,0],[20,0],[20,-10],[10,-10]]]}
+      "properties": { "zone_id": "TJ-PLAYAS" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-117.12, 32.52], [-117.10, 32.52], [-117.10, 32.50], [-117.12, 32.50], [-117.12, 32.52]
+        ]]
+      }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "ZN005" },
-      "geometry": { "type": "Polygon", "coordinates": [[[-10,0],[-10,10],[0,10],[0,0],[-10,0]]]}
-    },
-    {
-      "type": "Feature",
-      "properties": { "zone_id": "ZN006" },
-      "geometry": { "type": "Polygon", "coordinates": [[[-10,-10],[-10,0],[0,0],[0,-10],[-10,-10]]]}
+      "properties": { "zone_id": "TJ-LA-MESA" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-116.98, 32.51], [-116.96, 32.51], [-116.96, 32.49], [-116.98, 32.49], [-116.98, 32.51]
+        ]]
+      }
     }
   ]
 }
