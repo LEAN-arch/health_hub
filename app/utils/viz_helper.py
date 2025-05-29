@@ -7,6 +7,10 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
     """
     Create a line chart with annotations and optional confidence intervals.
     """
+    if not labels or not data or len(labels) != len(data):
+        st.error("Invalid input: Labels and data must be non-empty and of equal length.")
+        return go.Figure()
+    
     fig = go.Figure()
     
     fig.add_trace(go.Scatter(
@@ -20,7 +24,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         name=title
     ))
     
-    if ci_lower and ci_upper:
+    if ci_lower and ci_upper and len(ci_lower) == len(ci_upper) == len(labels):
         fig.add_trace(go.Scatter(
             x=labels + labels[::-1],
             y=ci_upper + ci_lower[::-1],
@@ -41,17 +45,20 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         )
     
     # Add anomaly annotations
-    anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
-    for idx in anomalies:
-        fig.add_annotation(
-            x=labels[idx],
-            y=data[idx],
-            text="Anomaly",
-            showarrow=True,
-            arrowhead=2,
-            ax=20,
-            ay=-30
-        )
+    try:
+        anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
+        for idx in anomalies:
+            fig.add_annotation(
+                x=labels[idx],
+                y=data[idx],
+                text="Anomaly",
+                showarrow=True,
+                arrowhead=2,
+                ax=20,
+                ay=-30
+            )
+    except Exception as e:
+        st.warning(f"Error detecting anomalies: {str(e)}")
     
     fig.update_layout(
         title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
@@ -70,6 +77,10 @@ def plot_bar_chart(categories, values, title, color):
     """
     Create a bar chart for categorical data.
     """
+    if not categories or not values or len(categories) != len(values):
+        st.error("Invalid input: Categories and values must be non-empty and of equal length.")
+        return go.Figure()
+    
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
@@ -97,6 +108,10 @@ def plot_donut_chart(labels, values, title):
     """
     Create a donut chart with hover details.
     """
+    if not labels or not values or len(labels) != len(values):
+        st.error("Invalid input: Labels and values must be non-empty and of equal length.")
+        return go.Figure()
+    
     fig = go.Figure()
     
     fig.add_trace(go.Pie(
@@ -127,7 +142,8 @@ def plot_heatmap(matrix, title):
         z = np.array(matrix.values, dtype=float)
         text = np.around(z, decimals=2)
     except (ValueError, TypeError) as e:
-        raise ValueError(f"Invalid matrix data for heatmap: {str(e)}")
+        st.error(f"Invalid matrix data for heatmap: {str(e)}")
+        return go.Figure()
 
     fig = go.Figure(data=go.Heatmap(
         z=z,
@@ -157,6 +173,10 @@ def plot_treemap(labels, values, parents, title):
     """
     Create a treemap for prioritization.
     """
+    if not labels or not values or not parents or len(labels) != len(values) or len(labels) != len(parents):
+        st.error("Invalid input: Labels, values, and parents must be non-empty and of equal length.")
+        return go.Figure()
+    
     fig = go.Figure(go.Treemap(
         labels=labels,
         values=values,
@@ -177,41 +197,49 @@ def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility
     """
     Create a layered choropleth map with risk and facilities.
     """
-    fig = px.choropleth(
-        data,
-        geojson=geojson,
-        locations=location_col,
-        featureidkey="properties.zone",
-        color=value_col,
-        color_continuous_scale="Reds",
-        range_color=[2.0, 3.5],
-        labels={value_col: "Disease Risk"}
-    )
+    if not geojson or not data or location_col not in data or value_col not in data or facility_col not in data:
+        st.error("Invalid input: GeoJSON and data must be valid with required columns.")
+        return go.Figure()
     
-    # Add facility scatter
-    fig.add_scattergeo(
-        lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]],
-        lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson["features"]],
-        text=data[facility_col],
-        mode="markers+text",
-        marker=dict(size=10, color="blue", symbol="cross"),
-        name="Facilities"
-    )
-    
-    fig.update_geos(
-        fitbounds="locations",
-        visible=False
-    )
-    
-    fig.update_layout(
-        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-        margin=dict(l=40, r=40, t=60, b=40),
-        height=400,
-        plot_bgcolor="white",
-        paper_bgcolor="white"
-    )
-    
-    return fig
+    try:
+        fig = px.choropleth(
+            data,
+            geojson=geojson,
+            locations=location_col,
+            featureidkey="properties.zone",
+            color=value_col,
+            color_continuous_scale="Reds",
+            range_color=[2.0, 3.5],
+            labels={value_col: "Disease Risk"}
+        )
+        
+        # Add facility scatter
+        fig.add_scattergeo(
+            lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]],
+            lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson["features"]],
+            text=data[facility_col],
+            mode="markers+text",
+            marker=dict(size=10, color="blue", symbol="cross"),
+            name="Facilities"
+        )
+        
+        fig.update_geos(
+            fitbounds="locations",
+            visible=False
+        )
+        
+        fig.update_layout(
+            title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
+            margin=dict(l=40, r=40, t=60, b=40),
+            height=400,
+            plot_bgcolor="white",
+            paper_bgcolor="white"
+        )
+        
+        return fig
+    except Exception as e:
+        st.error(f"Error rendering choropleth map: {str(e)}")
+        return go.Figure()
 
 def render_kpi_card(title, value, icon, status=None, drilldown=False):
     """
