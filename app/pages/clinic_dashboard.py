@@ -46,8 +46,8 @@ try:
     test_df = pd.DataFrame(mock_data['test_results'])
     if not test_df.empty:
         st.plotly_chart(plot_donut_chart(
-            test_df["status"],
-            test_df["count"],
+            test_df["status"].tolist(),  # Convert Series to list
+            test_df["count"].tolist(),  # Convert Series to list
             "Test Result Distribution"
         ), use_container_width=True)
     else:
@@ -57,16 +57,19 @@ except Exception as e:
 
 # Supply Forecast
 st.subheader("Supply Forecast")
-st.plotly_chart(plot_annotated_line_chart(
-    date_labels,
-    mock_data['supply_forecast'],
-    "Remaining Supply (days)",
-    "#22c55e",
-    target_line=30,
-    target_label="Critical: 30 days",
-    ci_lower=mock_data['supply_ci_lower'],
-    ci_upper=mock_data['supply_ci_upper']
-), use_container_width=True)
+try:
+    st.plotly_chart(plot_annotated_line_chart(
+        date_labels,
+        mock_data['supply_forecast'],
+        "Remaining Supply (days)",
+        "green",  # Use Plotly-compatible color
+        target_line=30,
+        target_label="Critical: 30 days",
+        ci_lower=mock_data['supply_ci_lower'],
+        ci_upper=mock_data['supply_ci_upper']
+    ), use_container_width=True)
+except Exception as e:
+    st.error(f"Error rendering supply forecast: {str(e)}")
 
 # Flagged Individuals
 st.subheader("Flagged Individuals")
