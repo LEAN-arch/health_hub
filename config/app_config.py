@@ -67,6 +67,12 @@ TARGET_WAITING_ROOM_OCCUPANCY = 10 # Max people desirable (example)
 TARGET_PATIENT_THROUGHPUT_PER_HOUR = 8 # Patients per hour per doctor/room (example)
 TARGET_SANITIZER_DISPENSES_PER_HOUR_PER_DISPENSER = 5 # Example
 
+# Intervention thresholds (as discussed for district_dashboard.py)
+INTERVENTION_FACILITY_COVERAGE_LOW_THRESHOLD = 50
+INTERVENTION_TB_BURDEN_HIGH_THRESHOLD = 5
+INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD = 10
+
+
 # Plotly specific settings
 DEFAULT_PLOT_HEIGHT = 380
 MAP_PLOT_HEIGHT = 575
@@ -76,6 +82,11 @@ TIJUANA_DEFAULT_ZOOM = 11
 MAP_DEFAULT_CENTER_LAT = TIJUANA_CENTER_LAT
 MAP_DEFAULT_CENTER_LON = TIJUANA_CENTER_LON
 MAP_DEFAULT_ZOOM = TIJUANA_DEFAULT_ZOOM
+DEFAULT_CRS = "EPSG:4326" # Added for consistency if used by GDF creation
+
+# --- Map Configurations --- <<< Section already exists, just add MAPBOX_STYLE here
+MAPBOX_STYLE = "open-street-map"  # Or "carto-positron", "carto-darkmatter", etc.
+                                  # Or your custom Mapbox style URL: "mapbox://styles/your_username/your_style_id"
 
 # Logging Configuration
 LOG_LEVEL = "INFO"
