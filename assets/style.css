@@ -1,174 +1,364 @@
-/* style.css */
+/* health_hub/assets/style.css */
+/* ----- Base Styles & Typography ----- */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-    background-color: #f0f2f5; /* Light grey background for the app */
-    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+    background-color: #f8f9fa; /* Lighter grey background */
+    color: #343a40; /* Darker base text color for better contrast */
+    line-height: 1.65;
+    font-size: 15px; /* Slightly larger base font */
 }
 
-.stApp {
-    /* max-width: 100% !important; /* Ensure wide layout is truly wide */
-    /* padding: 0rem 1rem; /* Remove default Streamlit padding if needed, or adjust */
+.stApp { /* Main Streamlit app container */
+    /* Potentially add app-wide padding if Streamlit defaults are too tight */
+    /* padding: 1rem 1.5rem; */
 }
 
-/* General Title Styling */
-h1, h2, h3 {
-    color: #1E3A8A; /* Dark Blue */
+/* ----- Headings & Titles ----- */
+h1, h2, h3, h4, h5, h6 {
+    color: #1A2557; /* Very Dark Blue (almost black) for strong headings */
+    font-weight: 700; /* Bolder */
+    letter-spacing: -0.02em; /* Slight tightening */
 }
-h1 {
-    border-bottom: 2px solid #BFDBFE; /* Light Blue underline */
+h1 { /* Page Titles */
+    font-size: 2.4rem; /* Slightly larger */
+    border-bottom: 4px solid #4D7BF3; /* Brighter, thicker accent blue */
+    padding-bottom: 0.75rem;
+    margin-bottom: 2rem;
+}
+h2 { /* Major Section Titles */
+    font-size: 1.85rem;
+    margin-top: 2.8rem;
+    margin-bottom: 1.4rem;
+    color: #2C3E50; /* Dark Slate Blue */
+    border-bottom: 2px solid #BDC3C7; /* Light Gray underline */
     padding-bottom: 0.5rem;
-    margin-bottom: 1.5rem;
 }
-h2 {
+h3 { /* Sub-section Titles / Chart Titles not in cards */
+    font-size: 1.45rem;
+    color: #3498DB; /* Bright Blue */
     margin-top: 2rem;
     margin-bottom: 1rem;
-    color: #1D4ED8; /* Medium Blue */
 }
-h3.kpi-title, h3.chart-title { /* Specific for KPI cards and chart titles */
-    font-size: 1.1rem;
-    color: #374151; /* Darker Gray */
-    margin-bottom: 0.5rem;
+
+/* Specific for titles within KPI cards or above charts (if custom class used) */
+h3.kpi-title, h3.chart-title {
+    font-size: 1rem; /* Optimized for card context */
+    color: #566573; /* Medium-Dark Gray */
+    margin-bottom: 0.4rem;
+    font-weight: 600; /* Semibold */
+    line-height: 1.4;
 }
 
 
-/* KPI Card Styling */
+/* ----- KPI Card Styling ----- */
 .kpi-card {
     background-color: #ffffff;
-    border-radius: 8px;
-    padding: 1.25rem; /* 20px */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease-in-out;
-    border-left: 5px solid #60A5FA; /* Default blue accent */
-    margin-bottom: 1rem; /* Spacing between cards */
+    border-radius: 12px; /* Softer, more rounded corners */
+    padding: 1.6rem; /* Increased padding */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.07); /* More pronounced shadow */
+    transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+    border-left: 7px solid #3498DB; /* Default accent color (Bright Blue) */
+    margin-bottom: 1.5rem; /* More vertical spacing between cards */
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 100%; /* Ensure cards in a row have same height if needed */
+    height: 100%; /* For consistent height in rows */
+    position: relative; /* For tooltips or absolutely positioned elements */
 }
 .kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px) scale(1.01); /* More noticeable hover effect */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
+
 .kpi-card-header {
     display: flex;
-    align-items: center;
-    margin-bottom: 0.75rem; /* 12px */
+    align-items: flex-start; /* Align icon to top if text wraps */
+    margin-bottom: 1rem;
 }
 .kpi-icon {
-    font-size: 2rem; /* 32px */
-    margin-right: 0.75rem; /* 12px */
-    color: #60A5FA; /* Default blue */
+    font-size: 2.5rem; /* Larger icon */
+    margin-right: 1.2rem;
+    color: #3498DB; /* Default icon color, matches border */
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    line-height: 1; /* Adjust for icon vertical alignment */
 }
-.kpi-title {
-    font-size: 0.9rem; /* 14.4px */
-    font-weight: 600;
-    color: #4B5563; /* Gray-700 */
+.kpi-icon img { /* If using img tags for icons */
+    width: 38px;
+    height: 38px;
+    vertical-align: top; /* Align with top of title text */
+}
+.kpi-title { /* This is an h3.kpi-title */
+    margin: 0; /* Override default h3 margin */
+    padding-top: 0.1em; /* Align with icon better */
+}
+
+.kpi-body { /* Container for value and delta */
+    text-align: left;
 }
 .kpi-value {
-    font-size: 1.75rem; /* 28px */
+    font-size: 2.3rem; /* Prominent value */
     font-weight: 700;
-    color: #1F2937; /* Gray-800 */
-    margin-bottom: 0.25rem; /* 4px */
+    color: #2C3E50; /* Dark Slate Blue, matches h2 */
+    margin-bottom: 0.35rem;
+    line-height: 1.1; /* Tighter line height for large font */
 }
 .kpi-delta {
-    font-size: 0.8rem;
+    font-size: 0.9rem; /* Readable delta */
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
 }
-.kpi-delta.positive { color: #10B981; /* Green-500 */ }
-.kpi-delta.negative { color: #EF4444; /* Red-500 */ }
-.kpi-delta.neutral { color: #6B7280; /* Gray-500 */ }
-
-/* KPI Status Variants */
-.kpi-card.status-high { border-left-color: #EF4444; /* Red */ }
-.kpi-card.status-high .kpi-icon { color: #EF4444; }
-.kpi-card.status-moderate { border-left-color: #F59E0B; /* Amber */ }
-.kpi-card.status-moderate .kpi-icon { color: #F59E0B; }
-.kpi-card.status-low { border-left-color: #10B981; /* Green */ }
-.kpi-card.status-low .kpi-icon { color: #10B981; }
+.kpi-delta.positive { color: #27AE60; /* Darker Green */ }
+.kpi-delta.positive::before { content: "▲ "; margin-right: 0.3em; font-size: 0.9em; }
+.kpi-delta.negative { color: #C0392B; /* Darker Red */ }
+.kpi-delta.negative::before { content: "▼ "; margin-right: 0.3em; font-size: 0.9em; }
+.kpi-delta.neutral { color: #7F8C8D; /* Medium Gray */ }
+/* Optional: Neutral icon if needed */
+/* .kpi-delta.neutral::before { content: "● "; margin-right: 0.3em; font-size: 0.7em;} */
 
 
-/* Traffic Light Indicator */
+/* KPI Card Status Variants */
+.kpi-card.status-high { border-left-color: #E74C3C; /* Bright Red */ } /* For "bad" high, like high risk */
+.kpi-card.status-high .kpi-icon { color: #E74C3C; }
+
+.kpi-card.status-good.status-high { border-left-color: #2ECC71; } /* For "good" high, like high performance */
+.kpi-card.status-good.status-high .kpi-icon { color: #2ECC71; }
+
+.kpi-card.status-moderate { border-left-color: #F39C12; /* Bright Orange */ }
+.kpi-card.status-moderate .kpi-icon { color: #F39C12; }
+
+.kpi-card.status-low { border-left-color: #2ECC71; /* Bright Green */ } /* For "good" low, like low error rate */
+.kpi-card.status-low .kpi-icon { color: #2ECC71; }
+
+.kpi-card.status-bad.status-low { border-left-color: #E74C3C; } /* For "bad" low, like low coverage */
+.kpi-card.status-bad.status-low .kpi-icon { color: #E74C3C; }
+
+.kpi-card.status-neutral { border-left-color: #95A5A6; /* Silver/Gray */ }
+.kpi-card.status-neutral .kpi-icon { color: #95A5A6; }
+
+
+/* ----- Traffic Light Indicator Styling ----- */
 .traffic-light-indicator {
     display: flex;
     align-items: center;
-    padding: 0.6rem 0.8rem;
-    border-radius: 6px;
-    background-color: #F9FAFB; /* Gray-50 */
-    margin-bottom: 0.5rem;
-    border: 1px solid #E5E7EB; /* Gray-200 */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    padding: 0.85rem 1.1rem; /* More padding */
+    border-radius: 10px;
+    background-color: #ECF0F1; /* Very Light Gray */
+    margin-bottom: 0.85rem;
+    border: 1px solid #BDC3C7; /* Light Gray Border */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 .traffic-light-dot {
-    width: 0.9rem; /* 14.4px */
-    height: 0.9rem;
+    width: 1.1rem; /* Larger dot */
+    height: 1.1rem;
     border-radius: 50%;
-    margin-right: 0.75rem; /* 12px */
+    margin-right: 1rem;
     flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.1); /* Subtle border for dot */
+    /* Removed inset shadow, can be too busy */
 }
-.traffic-light-dot.status-high { background-color: #EF4444; /* Red-500 */ }
-.traffic_light-dot.status-moderate { background-color: #F59E0B; /* Amber-500 */ }
-.traffic-light-dot.status-low { background-color: #10B981; /* Green-500 */ }
-.traffic-light-dot.status-neutral { background-color: #6B7280; /* Gray-500 */ }
+.traffic-light-dot.status-high { background-color: #E74C3C; }
+.traffic-light-dot.status-moderate { background-color: #F39C12; }
+.traffic-light-dot.status-low { background-color: #2ECC71; }
+.traffic-light-dot.status-neutral { background-color: #95A5A6; }
 
 .traffic-light-message {
-    font-size: 0.875rem; /* 14px */
-    color: #374151; /* Gray-700 */
+    font-size: 0.95rem; /* Slightly larger message */
+    color: #2C3E50; /* Dark Slate Blue */
     font-weight: 500;
 }
 .traffic-light-details {
-    font-size: 0.75rem; /* 12px */
-    color: #6B7280; /* Gray-500 */
-    margin-left: auto; /* Pushes details to the right */
-    padding-left: 0.5rem;
+    font-size: 0.85rem; /* Larger details */
+    color: #7F8C8D; /* Medium Gray */
+    margin-left: auto;
+    padding-left: 0.85rem;
+    font-style: normal; /* Prefer normal over italic for readability */
 }
 
-/* Streamlit Overrides (Use with caution) */
-/* Example: Make sidebar slightly wider */
-/* section[data-testid="stSidebar"] {
-    width: 22rem !important;
-} */
+/* ----- Streamlit Component Overrides & Enhancements ----- */
+/* Sidebar styling */
+section[data-testid="stSidebar"] {
+    width: 23rem !important; /* Slightly wider sidebar */
+    background-color: #FFFFFF;
+    border-right: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+section[data-testid="stSidebar"] .stImage > img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 0.5rem; /* Space below logo if in sidebar */
+}
+section[data-testid="stSidebar"] h1 { /* Sidebar title if present (usually App Title) */
+    font-size: 1.6rem;
+    text-align: center;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.6rem;
+    border-bottom-color: #BDC3C7;
+}
+section[data-testid="stSidebar"] .stMarkdown p,
+section[data-testid="stSidebar"] .stCaption {
+    font-size: 0.9rem; /* Larger sidebar text */
+    color: #566573;
+}
+section[data-testid="stSidebar"] label, /* For date input labels, etc. */
+section[data-testid="stSidebar"] .st-bq { /* For selectbox labels */
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: #2C3E50;
+}
 
-/* Styling for st.metric to be more compact if needed */
+
+/* Streamlit Metric (st.metric) Styling - to match KPI cards */
 div[data-testid="stMetric"] {
     background-color: #fff;
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    border-left: 4px solid #60A5FA; /* Default accent */
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    border-left: 6px solid #3498DB; /* Default accent (Bright Blue) */
+    margin-bottom: 1.2rem;
+}
+div[data-testid="stMetric"] > div:first-child { /* Label container */
+    font-size: 0.95rem; /* Metric Label */
+    color: #566573;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
 }
 div[data-testid="stMetricValue"] {
-    font-size: 2rem;
-}
-div[data-testid="stMetricLabel"] {
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
+    font-size: 2.1rem; /* Metric Value */
+    font-weight: 700;
+    color: #2C3E50;
 }
 div[data-testid="stMetricDelta"] {
-    font-size: 0.85rem;
-}
-
-/* Custom classes for expanders */
-.styled-expander {
-    border: 1px solid #D1D5DB; /* Gray-300 */
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-.styled-expander > div[data-testid="stExpanderDetails"] {
-    padding: 1rem;
-    background-color: #F9FAFB; /* Gray-50 */
-}
-.styled-expander summary {
-    font-weight: 600;
-    color: #1E3A8A; /* Dark Blue */
-    padding: 0.75rem 1rem;
-}
-
-/* For tabs */
-div[data-testid="stTabs"] button {
+    font-size: 0.9rem; /* Metric Delta */
     font-weight: 500;
+    padding-top: 0.25rem;
+}
+div[data-testid="stMetricDelta"] .positive { color: #27AE60; } /* Match kpi-delta */
+div[data-testid="stMetricDelta"] .negative { color: #C0392B; }
+
+
+/* Custom styled expanders */
+/* Use class name when calling st.expander e.g. st.expander(..., container_class="styled-expander") */
+.styled-expander {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+.styled-expander summary { /* Expander header */
+    font-weight: 600;
+    color: #2C3E50; /* Dark Slate Blue for header text */
+    padding: 1rem 1.4rem;
+    background-color: #f8f9fa; /* Light background for header */
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+.styled-expander summary:hover {
+    background-color: #e9ecef; /* Slightly darker on hover */
+}
+.styled-expander > div[data-testid="stExpanderDetails"] { /* Expander content area */
+    padding: 1.5rem;
+    background-color: #FFFFFF;
+}
+
+
+/* Streamlit Tabs Styling */
+div[data-testid="stTabs"] button {
+    font-weight: 600; /* Bolder tab labels */
+    color: #566573; /* Default tab text color */
+    padding: 0.75rem 1.2rem; /* More padding */
+    border-radius: 8px 8px 0 0; /* Rounded top corners */
+    transition: all 0.25s ease;
+    border-bottom: 3px solid transparent; /* Placeholder for active state */
+    margin-right: 2px; /* Slight separation */
+}
+div[data-testid="stTabs"] button:hover {
+    background-color: #e9ecef; /* Light gray hover */
+    color: #2C3E50;
+    border-bottom-color: #BDC3C7; /* Subtle underline on hover */
 }
 div[data-testid="stTabs"] button[aria-selected="true"] {
-    color: #1D4ED8; /* Medium Blue */
-    border-bottom-color: #1D4ED8;
+    color: #3498DB; /* Bright Blue for selected tab text */
+    border-bottom: 3px solid #3498DB; /* Active tab underline */
+    background-color: #FFFFFF; /* White background for selected tab makes it pop */
+}
+/* Tab Content Area (Optional: if you want to style the panel itself) */
+div[data-testid="stTabs"] div[data-testid="stMarkdownContainer"] { /* Content area of tabs */
+    border: 1px solid #dee2e6;
+    border-top: none;
+    padding: 1.8rem; /* More padding in tab content */
+    border-radius: 0 0 10px 10px;
+    background-color: #FFFFFF;
+}
+
+
+/* DataFrame Styling Enhancements */
+.stDataFrame { /* General container for Streamlit DataFrames */
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    font-size: 0.9rem; /* Slightly smaller font for density */
+}
+.stDataFrame thead th {
+    background-color: #f1f3f5; /* Lighter header background */
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase; /* Uppercase headers */
+    font-size: 0.85rem; /* Smaller header font */
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #adb5bd; /* Stronger bottom border for header */
+    padding: 0.75rem 0.6rem; /* Adjusted padding */
+}
+.stDataFrame tbody td {
+    padding: 0.6rem 0.6rem; /* Adjusted padding for cells */
+    border-bottom: 1px solid #e9ecef; /* Lighter row separators */
+}
+.stDataFrame tbody tr:nth-of-type(odd) {
+    background-color: rgba(248,249,250, 0.5); /* Very subtle striping */
+}
+.stDataFrame tbody tr:hover {
+    background-color: rgba(222, 226, 230, 0.4); /* Slightly more visible hover */
+}
+
+
+/* Markdown Links */
+a {
+    color: #3498DB; /* Bright Blue for links */
+    text-decoration: none;
+    font-weight: 500;
+}
+a:hover {
+    text-decoration: underline;
+    color: #2980B9; /* Darker Blue on hover */
+}
+
+/* Horizontal Rule */
+hr {
+    border: none;
+    border-top: 1px solid #ced4da; /* Lighter hr */
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Streamlit Button Enhancement */
+.stButton>button {
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.stButton>button:hover {
+    transform: translateY(-1px);
+}
+.stButton>button:active {
+    transform: translateY(0px);
+}
+
+/* Progress bar in tables/dataframe */
+div[data-testid="stProgress"] > div {
+    background-color: #3498DB; /* Match accent blue */
+    border-radius: 4px;
 }
