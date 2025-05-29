@@ -1,16 +1,16 @@
 # health_hub/app_home.py
 import streamlit as st
 import os
-import pandas as pd # Keep for app_config if it uses pd, e.g. Timestamp
-from config import app_config # Import the enhanced config
-import logging # Ensure logging is imported if not already via app_config
+import pandas as pd 
+from config import app_config 
+import logging 
 
 # --- Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(
     page_title=f"{app_config.APP_TITLE} - Home",
-    page_icon=app_config.APP_LOGO if os.path.exists(app_config.APP_LOGO) else "❤️", # Dynamic Icon
+    page_icon=app_config.APP_LOGO if os.path.exists(app_config.APP_LOGO) else "❤️", 
     layout="wide",
-    initial_sidebar_state="expanded", # Keep sidebar open on first load
+    initial_sidebar_state="expanded", 
     menu_items={
         'Get Help': f"mailto:{app_config.CONTACT_EMAIL}?subject=Help Request - {app_config.APP_TITLE}",
         'Report a bug': f"mailto:{app_config.CONTACT_EMAIL}?subject=Bug Report - {app_config.APP_TITLE} v{app_config.APP_VERSION}",
@@ -44,7 +44,8 @@ def load_css(css_file_path):
     else:
         logger.warning(f"CSS file not found at {css_file_path}. Styling may be affected. Default styles will be used.")
 
-load_css(app_config.STYLE_CSS_PATH) # Use STYLE_CSS_PATH from config
+# Load custom CSS from configured path
+load_css(app_config.STYLE_CSS_PATH) # <--- CORRECTED HERE
 
 
 # --- App Header ---
@@ -53,7 +54,7 @@ with header_cols[0]:
     if os.path.exists(app_config.APP_LOGO):
         st.image(app_config.APP_LOGO, width=70) 
     else:
-        st.markdown("❤️", unsafe_allow_html=True)
+        st.markdown("❤️", unsafe_allow_html=True) 
 
 with header_cols[1]:
     st.title(app_config.APP_TITLE)
@@ -81,7 +82,7 @@ with st.expander("🧑‍⚕️ **Community Health Worker (CHW) Dashboard** - Da
     - **Key Features:** Daily task lists, high-risk patient identification, wellness monitoring (SpO2, fever, activity levels), and referral tracking.
     - **Objective:** Equip CHWs with timely, actionable information to deliver targeted interventions and improve patient outcomes at the household level.
     """)
-    if st.button("Go to CHW Dashboard", key="nav_chw_home_button_final", type="primary"): # Incremented key
+    if st.button("Go to CHW Dashboard", key="nav_chw_home_button_final_v2", type="primary"): # Key incremented
         st.switch_page("pages/1_chw_dashboard.py")
 
 
@@ -91,7 +92,7 @@ with st.expander("🏥 **Clinic Operations Dashboard** - Facility-level performa
     - **Key Features:** Test positivity rates, turnaround times, critical drug stock levels, patient load analysis, and clinic environmental health monitoring.
     - **Objective:** Enable clinic managers to optimize resource utilization, enhance service delivery quality, and ensure patient safety and satisfaction.
     """)
-    if st.button("Go to Clinic Dashboard", key="nav_clinic_home_button_final", type="primary"):
+    if st.button("Go to Clinic Dashboard", key="nav_clinic_home_button_final_v2", type="primary"):
         st.switch_page("pages/2_clinic_dashboard.py")
 
 with st.expander("🗺️ **District Health Officer (DHO) Dashboard** - Strategic population health oversight.", expanded=False):
@@ -100,7 +101,7 @@ with st.expander("🗺️ **District Health Officer (DHO) Dashboard** - Strategi
     - **Key Features:** Geospatial mapping of health indicators, zonal comparisons, burden of disease analysis, and data-driven tools for intervention planning.
     - **Objective:** Provide DHOs with a comprehensive strategic overview to guide public health policy, optimize resource deployment, and lead targeted health initiatives.
     """)
-    if st.button("Go to District Dashboard", key="nav_dho_home_button_final", type="primary"):
+    if st.button("Go to District Dashboard", key="nav_dho_home_button_final_v2", type="primary"):
         st.switch_page("pages/3_district_dashboard.py")
 
 
