@@ -4,7 +4,7 @@ import geopandas as gpd
 import os
 import logging
 import streamlit as st
-import numpy as np
+import numpy as np # Ensure numpy is imported for np.nan
 from config import app_config
 
 logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging.INFO),
@@ -22,20 +22,24 @@ def hash_geodataframe(gdf): # pragma: no cover
         geom_col_name = gdf.geometry.name
         geometry_hash_part = b""
         if geom_col_name in gdf.columns and not gdf[geom_col_name].empty:
+            # Ensure geometries are valid before converting to WKT for hashing
             valid_geoms = gdf[geom_col_name][gdf[geom_col_name].is_valid & ~gdf[geom_col_name].is_empty]
-            if not valid_geoms.empty: geometry_hash_part = valid_geoms.to_wkt().values.tobytes()
+            if not valid_geoms.empty:
+                geometry_hash_part = valid_geoms.to_wkt().values.tobytes()
+        
         data_df = gdf.drop(columns=[geom_col_name], errors='ignore')
         data_hash_part = b""
         if not data_df.empty:
-            data_df = data_df.reindex(sorted(data_df.columns), axis=1)
+            data_df = data_df.reindex(sorted(data_df.columns), axis=1) # Sort cols for hash consistency
             data_hash_part = data_df.to_parquet()
         return (data_hash_part, geometry_hash_part)
     except Exception as e:
-        logger.error(f"Error hashing GeoDataFrame (falling back to string): {e}", exc_info=True)
+        logger.error(f"Error hashing GeoDataFrame (falling back to string representation): {e}", exc_info=True)
+        # Fallback to string representation for hashing if other methods fail.
+        # This can be slow and less reliable but better than unhashable error.
         return str(gdf)
 
 
-# --- Data Loading Functions ---
 @st.cache_data(ttl=3600)
 def load_health_records():
     file_path = app_config.HEALTH_RECORDS_CSV
@@ -55,6 +59,7 @@ def load_health_records():
             st.error(f"Health records missing required columns: {missing}. Check CSV.")
             return pd.DataFrame()
 
+        # Define all expected numeric columns, including new sensor data
         numeric_cols_expected = [
             'age', 'chw_visit', 'test_turnaround_days', 'supply_level_days',
             'ai_risk_score', 'tb_contact_traced', 'avg_daily_steps',
@@ -68,7 +73,7 @@ def load_health_records():
             else:
                 logger.debug(f"Numeric column '{col}' not found in health_records.csv. Creating with NaNs.")
                 df[col] = np.nan
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df[col] = pd.to_numeric(df[col], errors='coerce') # Ensure correct dtype after creation
 
         string_cols_expected = [
             'referral_status', 'test_result', 'test_type', 'supply_item',
@@ -96,7 +101,6 @@ def load_health_records():
 
 @st.cache_data(ttl=3600, hash_funcs={gpd.GeoDataFrame: hash_geodataframe})
 def load_zone_data():
-    # ... (Content as in the previous "complete, functional code" response - this function was stable)
     attributes_path = app_config.ZONE_ATTRIBUTES_CSV
     geometries_path = app_config.ZONE_GEOMETRIES_GEOJSON
     logger.info(f"Loading zone attributes: {attributes_path}, geometries: {geometries_path}")
@@ -126,8 +130,18 @@ def load_zone_data():
         zone_attributes_df['zone_id'] = zone_attributes_df['zone_id'].astype(str)
         zone_geometries_gdf['zone_id'] = zone_geometries_gdf['zone_id'].astype(str)
         merged_gdf = zone_geometries_gdf.merge(zone_attributes_df, on="zone_id", how="left")
-        if merged_gdf['name'].isnull().any(): # pragma: no cover
-            logger.warning(f"Unmatched zone geometries/attributes: {merged_gdf[merged_gdf['name'].isnull()]['zone_id'].tolist()}")
+        
+        # Log unmatched zone_ids AFTER merge attempt for better diagnostics
+        if 'name' in merged_gdf.columns and merged_gdf['name'].isnull().any(): # 'name' comes from attributes
+            unmatched_geoms_in_merged = merged_gdf[merged_gdf['name'].isnull()]['zone_id'].tolist()
+            if unmatched_geoms_in_merged: # pragma: no cover
+                 logger.warning(f"Some zone geometries could not be matched with attributes from CSV (zone_ids in GeoJSON but not attributes CSV or all attributes are NaN): {unmatched_geoms_in_merged}")
+        
+        # Also check if any attributes were not matched to a geometry
+        unmatched_attrs = zone_attributes_df[~zone_attributes_df['zone_id'].isin(merged_gdf['zone_id'])]['zone_id'].tolist()
+        if unmatched_attrs: # pragma: no cover
+            logger.warning(f"Some zone attributes from CSV could not be matched with geometries (zone_ids in attributes CSV but not in GeoJSON): {unmatched_attrs}")
+
         logger.info(f"Loaded and merged zone data ({len(merged_gdf)} features).")
         return merged_gdf
     except Exception as e: # pragma: no cover
@@ -135,10 +149,8 @@ def load_zone_data():
         st.error(f"Error loading zone data: {e}")
         return None
 
-
 @st.cache_data(ttl=3600)
 def load_iot_clinic_environment_data():
-    # ... (Content as in the previous "complete, functional code" response - this function was stable)
     file_path = app_config.IOT_CLINIC_ENVIRONMENT_CSV
     logger.info(f"Attempting to load IoT clinic environment data from: {file_path}")
     try:
@@ -151,12 +163,15 @@ def load_iot_clinic_environment_data():
         if not all(col in df.columns for col in required_cols): # pragma: no cover
             missing = [col for col in required_cols if col not in df.columns]
             logger.warning(f"IoT data missing required columns: {missing}. Environment metrics may be incomplete.")
+            # If critical IDs are missing, return empty
             if 'timestamp' not in df.columns or 'clinic_id' not in df.columns: return pd.DataFrame()
 
         if 'clinic_id' in df.columns:
-            try:
+            try: # TJ-ZONA-RIO-C1 -> TJ-ZONA-RIO
                 df['zone_id'] = df['clinic_id'].apply(lambda x: "-".join(str(x).split('-')[:2]) if isinstance(x, str) and x.count('-') >= 1 else 'UnknownZone')
             except Exception: df['zone_id'] = 'UnknownZone' # pragma: no cover
+        else: # pragma: no cover
+            df['zone_id'] = 'UnknownZone'
         
         numeric_iot_cols = ['avg_co2_ppm', 'max_co2_ppm', 'avg_pm25', 'voc_index',
                             'avg_temp_celsius', 'avg_humidity_rh', 'avg_noise_db',
@@ -166,9 +181,9 @@ def load_iot_clinic_environment_data():
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             else: # pragma: no cover
-                 logger.debug(f"Numeric IoT column '{col}' not found in iot_clinic_environment.csv.")
+                 logger.debug(f"Numeric IoT column '{col}' not found in iot_clinic_environment.csv. Creating with NaNs.")
                  df[col] = np.nan
-                 df[col] = pd.to_numeric(df[col], errors='coerce')
+                 df[col] = pd.to_numeric(df[col], errors='coerce') # Ensure dtype
 
 
         logger.info(f"Loaded IoT clinic environment data ({len(df)} rows).")
@@ -184,139 +199,150 @@ def load_iot_clinic_environment_data():
 
 @st.cache_data(ttl=3600, hash_funcs={gpd.GeoDataFrame: hash_geodataframe, pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def enrich_zone_geodata_with_health_aggregates(zone_gdf, health_df, iot_df=None):
-    # Define all expected aggregate columns upfront
-    expected_agg_cols = [
-        'avg_risk_score', 'chw_visits_in_zone', 'active_tb_cases', 'active_malaria_cases', 
-        'hiv_positive_cases', 'pneumonia_cases', 'anemia_cases', 'sti_cases', 
-        'ntd_chagas_cases', 'hpv_screenings_done', 'avg_daily_steps_zone', 
-        'avg_sleep_score_zone', 'avg_spo2_zone', 'avg_skin_temp_zone', 'total_falls_detected_zone',
-        'prevalence_per_1000', 'facility_coverage_score', 'total_tests_conducted',
-        'zone_avg_co2', 'zone_max_co2', 'zone_avg_temp', 'total_active_key_infections'
-    ]
+    base_cols_to_ensure_numeric = ['avg_risk_score', 'active_tb_cases', 'active_malaria_cases', 'hiv_positive_cases',
+                                   'pneumonia_cases', 'anemia_cases', 'sti_cases', 'ntd_chagas_cases', 'hpv_screenings_done',
+                                   'avg_daily_steps_zone', 'avg_sleep_score_zone', 'avg_spo2_zone', 'avg_skin_temp_zone', 'total_falls_detected_zone',
+                                   'prevalence_per_1000', 'facility_coverage_score', 'total_tests_conducted', 'chw_visits_in_zone',
+                                   'zone_avg_co2', 'zone_max_co2', 'zone_avg_temp', 'total_active_key_infections']
+    # Columns that might come from zone_gdf attributes directly
+    base_zone_cols = ['zone_id', 'name', 'population', 'socio_economic_index', 'num_clinics', 'avg_travel_time_clinic_min', 'geometry']
+
 
     if zone_gdf is None or zone_gdf.empty:
-        logger.warning("Zone GeoDataFrame is empty or None for enrichment. Returning empty GDF with expected schema.")
-        return gpd.GeoDataFrame({col: [] for col in (zone_gdf.columns if zone_gdf is not None and not zone_gdf.empty else []) + expected_agg_cols}, 
-                                crs=(zone_gdf.crs if zone_gdf is not None else "EPSG:4326"))
+        logger.warning("Zone GeoDataFrame is empty/None for enrichment. Returning empty GDF with expected schema.")
+        return gpd.GeoDataFrame({col: [] for col in base_zone_cols + base_cols_to_ensure_numeric},
+                                crs=(zone_gdf.crs if zone_gdf is not None and hasattr(zone_gdf, 'crs') else "EPSG:4326"))
 
     enriched_gdf = zone_gdf.copy()
-    enriched_gdf['zone_id'] = enriched_gdf['zone_id'].astype(str)
+    if 'zone_id' in enriched_gdf.columns:
+        enriched_gdf['zone_id'] = enriched_gdf['zone_id'].astype(str)
+    else: # pragma: no cover
+        logger.error("CRITICAL: 'zone_id' missing in input zone_gdf for enrichment. Aggregations will fail or be incorrect.")
+        # Add default columns and return to prevent breaking downstream, data will be flawed.
+        for col in base_cols_to_ensure_numeric: enriched_gdf[col] = 0.0
+        return enriched_gdf
 
-    # Initialize all expected aggregate columns to 0.0 (or a suitable default like np.nan)
-    # Using 0.0 because many are counts or means where 0 is a valid outcome if no data matches
-    for col in expected_agg_cols:
-         if col not in enriched_gdf.columns: enriched_gdf[col] = 0.0
+    # Initialize all expected aggregate columns to 0.0 float if not present
+    for col in base_cols_to_ensure_numeric:
+        if col not in enriched_gdf.columns: enriched_gdf[col] = 0.0
 
 
     if health_df is not None and not health_df.empty:
         health_df_copy = health_df.copy()
-        health_df_copy['zone_id'] = health_df_copy['zone_id'].astype(str)
+        if 'zone_id' not in health_df_copy.columns: # pragma: no cover
+            logger.warning("Health_df missing 'zone_id', cannot perform zonal health aggregations.")
+        else:
+            health_df_copy['zone_id'] = health_df_copy['zone_id'].astype(str)
+            
+            # Lambdas for custom aggregations on grouped data
+            def agg_count_unique_patients_condition(group_df, condition_list):
+                if 'condition' not in group_df or 'patient_id' not in group_df : return 0
+                return group_df[group_df['condition'].astype(str).isin(condition_list)]['patient_id'].nunique()
 
-        # Define aggregation functions safely
-        def safe_count_unique_patients_with_condition(condition_list_str_or_list):
-            actual_condition_list = [condition_list_str_or_list] if not isinstance(condition_list_str_or_list, list) else condition_list_str_or_list
-            return lambda x: health_df_copy.loc[x.index, 'patient_id'].astype(str).nunique() if 'condition' in health_df_copy.columns and not x.empty and health_df_copy.loc[x.index, 'condition'].astype(str).isin(actual_condition_list).any() else 0 # Only count if condition is present
+            def agg_count_sti(group_df):
+                if 'condition' not in group_df or 'patient_id' not in group_df: return 0
+                return group_df[group_df['condition'].astype(str).str.startswith('STI-', na=False)]['patient_id'].nunique()
 
-        def safe_count_sti_cases(x_indices):
-            if 'condition' not in health_df_copy.columns or x_indices.empty: return 0
-            # Filter for rows where condition starts with 'STI-' and count unique patients
-            return health_df_copy.loc[x_indices].loc[health_df_copy.loc[x_indices, 'condition'].astype(str).str.startswith('STI-', na=False), 'patient_id'].astype(str).nunique()
+            def agg_hpv_screenings(group_df):
+                if 'test_type' not in group_df: return 0
+                return (group_df['test_type'].astype(str) == 'PapSmear').sum()
 
-        def safe_sum(col_name):
-            return lambda x: pd.to_numeric(health_df_copy.loc[x.index, col_name], errors='coerce').sum() if col_name in health_df_copy.columns and not x.empty else 0.0
+            zone_summary_list = []
+            if 'zone_id' in health_df_copy.columns: # Ensure groupby column exists
+                grouped_by_zone = health_df_copy.groupby('zone_id')
+                for zone, group in grouped_by_zone:
+                    summary_dict = {'zone_id': zone}
+                    # Standard aggregations
+                    for agg_col, op in [('ai_risk_score', 'mean'), ('chw_visit', 'sum'), 
+                                       ('avg_daily_steps', 'mean'), ('sleep_score_pct', 'mean'), 
+                                       ('avg_spo2_pct', 'mean'), ('avg_skin_temp_celsius', 'mean'),
+                                       ('fall_detected_today', 'sum')]:
+                        if agg_col in group.columns: summary_dict[agg_col] = group[agg_col].agg(op)
+                        else: summary_dict[agg_col] = np.nan # Or 0, depending on desired default for missing source column
 
-        def safe_mean(col_name):
-             return lambda x: pd.to_numeric(health_df_copy.loc[x.index, col_name], errors='coerce').mean() if col_name in health_df_copy.columns and not x.empty and pd.to_numeric(health_df_copy.loc[x.index, col_name], errors='coerce').notna().any() else 0.0 # Return 0.0 for avg if no non-NaNs
+                    # Rename for zonal context
+                    summary_dict['avg_daily_steps_zone'] = summary_dict.pop('avg_daily_steps', np.nan)
+                    summary_dict['avg_sleep_score_zone'] = summary_dict.pop('sleep_score_pct', np.nan)
+                    summary_dict['avg_spo2_zone'] = summary_dict.pop('avg_spo2_pct', np.nan)
+                    summary_dict['avg_skin_temp_zone'] = summary_dict.pop('avg_skin_temp_celsius', np.nan)
+                    summary_dict['total_falls_detected_zone'] = summary_dict.pop('fall_detected_today', 0)
 
 
-        zone_summary_aggregations = {
-            'avg_risk_score': ('ai_risk_score', safe_mean('ai_risk_score')), # Use safe_mean
-            'chw_visits_in_zone': ('chw_visit', safe_sum('chw_visit')), # Use safe_sum
-            'active_tb_cases': ('patient_id', safe_count_unique_patients_with_condition(['TB'])),
-            'active_malaria_cases': ('patient_id', safe_count_unique_patients_with_condition(['Malaria'])),
-            'hiv_positive_cases': ('patient_id', safe_count_unique_patients_with_condition(['HIV-Positive'])),
-            'pneumonia_cases': ('patient_id', safe_count_unique_patients_with_condition(['Pneumonia'])),
-            'anemia_cases': ('patient_id', safe_count_unique_patients_with_condition(['Anemia'])),
-            'sti_cases': ('patient_id', safe_count_sti_cases),
-            'ntd_chagas_cases': ('patient_id', safe_count_unique_patients_with_condition(['NTD-Chagas'])), # Add other NTDs if needed
-            'hpv_screenings_done': ('test_type', lambda x: (health_df_copy.loc[x.index]['test_type'].astype(str) == 'PapSmear').sum() if 'test_type' in health_df_copy.columns and not x.empty else 0), # Still needs test_type column check
-            'avg_daily_steps_zone': ('avg_daily_steps', safe_mean('avg_daily_steps')),
-            'avg_sleep_score_zone': ('sleep_score_pct', safe_mean('sleep_score_pct')),
-            'avg_spo2_zone': ('avg_spo2_pct', safe_mean('avg_spo2_pct')),
-            'avg_skin_temp_zone': ('avg_skin_temp_celsius', safe_mean('avg_skin_temp_celsius')),
-            'total_falls_detected_zone': ('fall_detected_today', safe_sum('fall_detected_today'))
-        }
-        
-        # Filter aggregations by source column existence BEFORE passing to agg
-        valid_aggregations = {
-            key: val for key, val in zone_summary_aggregations.items() 
-            if isinstance(val, tuple) and val[0] in health_df_copy.columns
-            # Add check if the aggregation function itself needs other columns (e.g. condition)
-            and (val[0] != 'patient_id' or val[1].__name__ != 'safe_count_unique_patients_with_condition' or 'condition' in health_df_copy.columns)
-            and (val[0] != 'patient_id' or val[1].__name__ != 'safe_count_sti_cases' or 'condition' in health_df_copy.columns)
-            and (val[0] != 'test_type' or val[1].__name__ != 'hpv_screenings_done' or 'test_type' in health_df_copy.columns)
-        }
+                    # Custom aggregations
+                    summary_dict['active_tb_cases'] = agg_count_unique_patients_condition(group, ['TB'])
+                    summary_dict['active_malaria_cases'] = agg_count_unique_patients_condition(group, ['Malaria'])
+                    summary_dict['hiv_positive_cases'] = agg_count_unique_patients_condition(group, ['HIV-Positive'])
+                    summary_dict['pneumonia_cases'] = agg_count_unique_patients_with_condition(group, ['Pneumonia'])
+                    summary_dict['anemia_cases'] = agg_count_unique_patients_with_condition(group, ['Anemia'])
+                    summary_dict['sti_cases'] = agg_count_sti(group)
+                    summary_dict['ntd_chagas_cases'] = agg_count_unique_patients_with_condition(group, ['NTD-Chagas'])
+                    summary_dict['hpv_screenings_done'] = agg_hpv_screenings(group)
+                    zone_summary_list.append(summary_dict)
 
-        if valid_aggregations:
-            try:
-                zone_summary = health_df_copy.groupby('zone_id').agg(**valid_aggregations).reset_index()
-                enriched_gdf = enriched_gdf.merge(zone_summary, on='zone_id', how='left')
-            except Exception as e_agg:
-                logger.error(f"Error during health data aggregation by zone: {e_agg}", exc_info=True)
-                # Proceed without merging if aggregation fails, but log
-        else: logger.warning("No valid columns found in health_df for aggregation during enrichment.")
-    
-    # Fill NaNs for all health aggregates (important after merge or if health_df was empty or aggregation failed)
-    for col in expected_agg_cols: # Use the pre-defined list from top of function
-        if col not in enriched_gdf.columns: enriched_gdf[col] = 0.0 # Ensure column exists if it was missed entirely
-        # Ensure column is numeric/float before fillna, especially if it was just added as 0.0 or started as non-numeric
-        if pd.api.types.is_numeric_dtype(enriched_gdf[col]) or pd.api.types.is_float_dtype(enriched_gdf[col]):
-            enriched_gdf[col] = enriched_gdf[col].fillna(0.0) # Fill numeric NaNs with 0
-        else: # If it's not numeric (e.g. was a string), fill non-numeric NaNs with a string default
-            enriched_gdf[col] = enriched_gdf[col].astype(str).fillna('N/A')
+                if zone_summary_list:
+                    zone_summary_df = pd.DataFrame(zone_summary_list)
+                    enriched_gdf = enriched_gdf.merge(zone_summary_df, on='zone_id', how='left', suffixes=('', '_from_health_agg'))
+                else: # pragma: no cover
+                     logger.warning("Zone summary list is empty after health_df aggregation attempt.")
+            else: # pragma: no cover
+                logger.warning("No 'zone_id' in health_df_copy for aggregation, or health_df empty.")
+
+    # Fill NaNs for health aggregates post-merge or if health_df was initially empty
+    for col in expected_health_agg_cols: # This list from previous definition ensures all are covered
+        # Handle potential suffixed columns from merge if original colname was already in enriched_gdf
+        col_suffixed = f"{col}_from_health_agg"
+        if col_suffixed in enriched_gdf.columns:
+            enriched_gdf[col] = pd.to_numeric(enriched_gdf[col_suffixed], errors='coerce').fillna(0)
+            enriched_gdf.drop(columns=[col_suffixed], inplace=True, errors='ignore')
+        elif col not in enriched_gdf.columns: 
+            enriched_gdf[col] = 0.0
+        else: # Column existed, ensure it's numeric and filled
+            enriched_gdf[col] = pd.to_numeric(enriched_gdf[col], errors='coerce').fillna(0)
 
 
     if iot_df is not None and not iot_df.empty:
         iot_df_copy = iot_df.copy()
-        if 'zone_id' not in iot_df_copy.columns: 
-            logger.warning("zone_id missing in IoT data for enrichment.")
+        if 'zone_id' not in iot_df_copy.columns: # pragma: no cover
+            logger.warning("zone_id missing in IoT data for enrichment by zone.")
         else:
             iot_df_copy['zone_id'] = iot_df_copy['zone_id'].astype(str)
-            iot_cols_to_num = ['avg_co2_ppm', 'max_co2_ppm', 'avg_temp_celsius']
-            for iot_col in iot_cols_to_num:
-                if iot_col in iot_df_copy.columns: iot_df_copy[iot_col] = pd.to_numeric(iot_df_copy[iot_col], errors='coerce')
-                else: iot_df_copy[iot_col] = np.nan # Add as NaN if missing
+            for iot_col_num in ['avg_co2_ppm', 'max_co2_ppm', 'avg_temp_celsius']:
+                if iot_col_num in iot_df_copy.columns: iot_df_copy[iot_col_num] = pd.to_numeric(iot_df_copy[iot_col_num], errors='coerce')
+                else: iot_df_copy[iot_col_num] = np.nan # pragma: no cover
             
             latest_iot_zone = iot_df_copy.sort_values('timestamp').drop_duplicates(subset=['zone_id', 'room_name'], keep='last')
-            iot_zone_summary = latest_iot_zone.groupby('zone_id').agg(
-                zone_avg_co2=('avg_co2_ppm', 'mean'), zone_max_co2=('max_co2_ppm', 'max'),
-                zone_avg_temp=('avg_temp_celsius', 'mean')).reset_index()
-            enriched_gdf = enriched_gdf.merge(iot_zone_summary, on='zone_id', how='left')
-    
+            if not latest_iot_zone.empty:
+                iot_zone_summary = latest_iot_zone.groupby('zone_id').agg(
+                    zone_avg_co2=('avg_co2_ppm', 'mean'), 
+                    zone_max_co2=('max_co2_ppm', 'max'), # Max CO2 seen in any room in the zone
+                    zone_avg_temp=('avg_temp_celsius', 'mean')
+                ).reset_index()
+                enriched_gdf = enriched_gdf.merge(iot_zone_summary, on='zone_id', how='left', suffixes=('', '_from_iot_agg'))
+            else: # pragma: no cover
+                 logger.info("No IoT data to aggregate by zone after filtering.")
+
     expected_iot_agg_cols = ['zone_avg_co2', 'zone_max_co2', 'zone_avg_temp']
     for col in expected_iot_agg_cols:
-        if col not in enriched_gdf.columns: enriched_gdf[col] = 0.0 # Ensure column exists
-        enriched_gdf[col] = pd.to_numeric(enriched_gdf[col], errors='coerce').fillna(0) # Fill with 0
+        col_suffixed = f"{col}_from_iot_agg"
+        if col_suffixed in enriched_gdf.columns:
+            enriched_gdf[col] = pd.to_numeric(enriched_gdf[col_suffixed], errors='coerce').fillna(0)
+            enriched_gdf.drop(columns=[col_suffixed], inplace=True, errors='ignore')
+        elif col not in enriched_gdf.columns:
+            enriched_gdf[col] = 0.0
+        else:
+            enriched_gdf[col] = pd.to_numeric(enriched_gdf[col], errors='coerce').fillna(0)
 
-    # --- Recalculate total_active_key_infections and prevalence_per_1000 ---
-    key_infectious_cols = ['active_tb_cases', 'active_malaria_cases', 'hiv_positive_cases', 'pneumonia_cases', 'sti_cases'] # These are column names created by aggregation
+    key_infectious_cols = ['active_tb_cases', 'active_malaria_cases', 'hiv_positive_cases', 'pneumonia_cases', 'sti_cases']
     enriched_gdf['total_active_key_infections'] = 0.0
     for col_inf in key_infectious_cols:
-        # Ensure the column exists before trying to sum it, in case aggregation failed for that specific type
-        if col_inf in enriched_gdf.columns: 
-            enriched_gdf['total_active_key_infections'] += pd.to_numeric(enriched_gdf[col_inf], errors='coerce').fillna(0)
-        else: 
-            # If the column doesn't exist, it means no cases were found or aggregation failed for it.
-            # It was already initialized to 0.0, so no need to add to total here.
-            pass
-
+        if col_inf in enriched_gdf.columns: enriched_gdf['total_active_key_infections'] += pd.to_numeric(enriched_gdf[col_inf], errors='coerce').fillna(0)
+        else: enriched_gdf[col_inf] = 0.0 
 
     if 'population' in enriched_gdf.columns and 'total_active_key_infections' in enriched_gdf.columns:
         enriched_gdf['population'] = pd.to_numeric(enriched_gdf['population'], errors='coerce').fillna(0)
         enriched_gdf['prevalence_per_1000'] = enriched_gdf.apply(lambda row: (row['total_active_key_infections'] / row['population']) * 1000 if row['population'] > 0 else 0.0, axis=1)
-    else: enriched_gdf['prevalence_per_1000'] = 0.0 # Ensure column exists
-
-    # --- Recalculate facility_coverage_score ---
+    else: enriched_gdf['prevalence_per_1000'] = 0.0
+    
     if 'avg_travel_time_clinic_min' in enriched_gdf.columns and 'num_clinics' in enriched_gdf.columns:
         enriched_gdf['avg_travel_time_clinic_min'] = pd.to_numeric(enriched_gdf['avg_travel_time_clinic_min'], errors='coerce')
         enriched_gdf['num_clinics'] = pd.to_numeric(enriched_gdf['num_clinics'], errors='coerce')
@@ -329,121 +355,79 @@ def enrich_zone_geodata_with_health_aggregates(zone_gdf, health_df, iot_df=None)
         enriched_gdf['facility_coverage_score'] = (enriched_gdf['travel_score'].fillna(50) * 0.6 + enriched_gdf['clinic_count_score'].fillna(50) * 0.4)
     else: enriched_gdf['facility_coverage_score'] = 50.0
 
-    # Ensure all expected cols have final non-NaN values, especially if they were just added/merged
-    for col_final in expected_agg_cols:
-        if col_final in enriched_gdf.columns: # Should always be true due to initialization
-            if pd.api.types.is_numeric_dtype(enriched_gdf[col_final]):
-                enriched_gdf[col_final] = enriched_gdf[col_final].fillna(enriched_gdf[col_final].median() if enriched_gdf[col_final].notna().any() else 0.0)
-            # If it's not numeric (shouldn't happen for expected agg cols, but as a check), fill NaNs
-            elif pd.api.types.is_object_dtype(enriched_gdf[col_final]) or pd.api.types.is_string_dtype(enriched_gdf[col_final]): # pragma: no cover
-                 enriched_gdf[col_final] = enriched_gdf[col_final].astype(str).fillna('N/A')
-        else: # pragma: no cover
-             logger.error(f"Expected final aggregate column '{col_final}' missing after all steps!")
-             # This shouldn't happen with the initialization block at the start
-             enriched_gdf[col_final] = 0.0
-
+    for score_col_final in ['travel_score', 'clinic_count_score', 'facility_coverage_score', 'prevalence_per_1000']:
+        if score_col_final not in enriched_gdf.columns: enriched_gdf[score_col_final] = 0.0
+        enriched_gdf[score_col_final] = pd.to_numeric(enriched_gdf[score_col_final], errors='coerce').fillna(
+            enriched_gdf[score_col_final].median() if pd.api.types.is_numeric_dtype(enriched_gdf[score_col_final]) and not enriched_gdf[score_col_final].empty and enriched_gdf[score_col_final].notna().any() else 0.0)
 
     logger.info("Zone geodata successfully enriched.")
     return enriched_gdf
 
-# --- KPI Calculation Functions (ensure robust to missing columns/NaNs using .get()) ---
+
+# --- KPI Calculation Functions (robust versions using .get() and type checks) ---
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_overall_kpis(df_health_records):
-    if df_health_records is None or df_health_records.empty: return {"total_patients": 0, "tb_cases_active": 0, "malaria_rdt_positive_rate":0.0, "hiv_newly_diagnosed_period": 0, "pending_critical_referrals": 0}
-    df = df_health_records.copy() # Operate on a copy
-    df['date'] = pd.to_datetime(df.get('date'), errors='coerce'); df.dropna(subset=['date'], inplace=True)
+    if df_health_records.empty: return {"total_patients": 0, "tb_cases_active": 0, "malaria_rdt_positive_rate":0.0, "hiv_newly_diagnosed_period": 0, "pending_critical_referrals": 0}
+    df = df_health_records.copy()
+    if 'date' not in df.columns or df['date'].isnull().all(): return {"total_patients": 0, "tb_cases_active": 0, "malaria_rdt_positive_rate":0.0, "hiv_newly_diagnosed_period": 0, "pending_critical_referrals": 0}
+    df['date'] = pd.to_datetime(df['date'], errors='coerce'); df.dropna(subset=['date'], inplace=True)
     if df.empty: return {"total_patients": 0, "tb_cases_active": 0, "malaria_rdt_positive_rate":0.0, "hiv_newly_diagnosed_period": 0, "pending_critical_referrals": 0}
     latest_date = df['date'].max(); period_start_date = latest_date - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND)
-    # Ensure columns used for KPIs exist and have appropriate types/fillings
-    df['patient_id'] = df.get('patient_id', pd.Series(dtype='str')).astype(str).fillna('Unknown')
-    df['condition'] = df.get('condition', pd.Series(dtype='str')).astype(str).fillna('Unknown')
-    df['test_result'] = df.get('test_result', pd.Series(dtype='str')).astype(str).fillna('Unknown')
-    df['referral_status'] = df.get('referral_status', pd.Series(dtype='str')).astype(str).fillna('Unknown')
-    df['test_type'] = df.get('test_type', pd.Series(dtype='str')).astype(str).fillna('Unknown')
+    for col in ['patient_id', 'condition', 'test_result', 'referral_status', 'test_type']: df[col] = df.get(col, pd.Series(dtype='str')).astype(str).fillna('Unknown')
     df['test_date'] = pd.to_datetime(df.get('test_date'), errors='coerce')
 
     total_patients = df['patient_id'].nunique()
     tb_cases_active = df[(df['condition'] == 'TB') & (df['test_result'] == 'Positive') & (df['referral_status'] != 'Completed')]['patient_id'].nunique()
-    
-    malaria_rdt_tests = df[df['test_type'] == 'RDT-Malaria']
-    malaria_rdt_positive = malaria_rdt_tests[malaria_rdt_tests['test_result'] == 'Positive'].shape[0]
-    malaria_rdt_total_conclusive = malaria_rdt_tests[~malaria_rdt_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]
-    malaria_rdt_positive_rate = (malaria_rdt_positive / malaria_rdt_total_conclusive) * 100 if malaria_rdt_total_conclusive > 0 else 0.0
-    
+    malaria_rdt_tests = df[df['test_type'] == 'RDT-Malaria']; malaria_rdt_positive = malaria_rdt_tests[malaria_rdt_tests['test_result'] == 'Positive'].shape[0]; malaria_rdt_total_conclusive = malaria_rdt_tests[~malaria_rdt_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]; malaria_rdt_positive_rate = (malaria_rdt_positive / malaria_rdt_total_conclusive) * 100 if malaria_rdt_total_conclusive > 0 else 0.0
     hiv_newly_diagnosed = df[(df['condition'] == 'HIV-Positive') & (df['test_result'] == 'Positive') & (df['test_type'].str.contains("HIV", case=False, na=False)) & (df['test_date'].notna()) & (df['test_date'] >= period_start_date)]['patient_id'].nunique()
     pending_critical_referrals = df[(df['referral_status'] == 'Pending') & (df['condition'].isin(app_config.KEY_CONDITIONS_FOR_TRENDS))]['patient_id'].nunique()
-    
     return {"total_patients": total_patients, "tb_cases_active": tb_cases_active, "malaria_rdt_positive_rate": malaria_rdt_positive_rate, "hiv_newly_diagnosed_period": hiv_newly_diagnosed, "pending_critical_referrals": pending_critical_referrals}
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_chw_summary(df_chw_view):
-    if df_chw_view is None or df_chw_view.empty: return {"visits_today": 0, "tb_contacts_to_trace": 0, "sti_symptomatic_referrals": 0, "avg_patient_risk_visited":0.0, "patients_low_spo2_visited": 0, "patients_fever_visited": 0}
+    if df_chw_view.empty: return {"visits_today": 0, "tb_contacts_to_trace": 0, "sti_symptomatic_referrals": 0, "avg_patient_risk_visited":0.0, "patients_low_spo2_visited": 0, "patients_fever_visited": 0}
     df = df_chw_view.copy()
-    # Ensure all used columns exist and have correct types, with defaults
-    df['chw_visit'] = pd.to_numeric(df.get('chw_visit'), errors='coerce').fillna(0)
-    df['condition'] = df.get('condition', 'Unknown').astype(str)
-    df['tb_contact_traced'] = pd.to_numeric(df.get('tb_contact_traced'), errors='coerce').fillna(0)
-    df['ai_risk_score'] = pd.to_numeric(df.get('ai_risk_score'), errors='coerce') # Keep NaNs for mean
-    df['referral_status'] = df.get('referral_status', 'Unknown').astype(str)
-    df['avg_spo2_pct'] = pd.to_numeric(df.get('avg_spo2_pct'), errors='coerce') # Keep NaNs
-    df['max_skin_temp_celsius'] = pd.to_numeric(df.get('max_skin_temp_celsius'), errors='coerce') # Keep NaNs
-
+    df['chw_visit'] = pd.to_numeric(df.get('chw_visit'), errors='coerce').fillna(0); df['condition'] = df.get('condition', 'Unknown').astype(str); df['tb_contact_traced'] = pd.to_numeric(df.get('tb_contact_traced'), errors='coerce').fillna(0); df['ai_risk_score'] = pd.to_numeric(df.get('ai_risk_score'), errors='coerce'); df['referral_status'] = df.get('referral_status', 'Unknown').astype(str); df['avg_spo2_pct'] = pd.to_numeric(df.get('avg_spo2_pct'), errors='coerce'); df['max_skin_temp_celsius'] = pd.to_numeric(df.get('max_skin_temp_celsius'), errors='coerce')
     visits_today = df[df['chw_visit'] == 1].shape[0]
     tb_contacts_to_trace = df[(df['condition'] == 'TB') & (df['tb_contact_traced'] == 0)].shape[0]
     sti_symptomatic_referrals = df[(df['condition'].str.startswith("STI-", na=False)) & (df['referral_status'] == 'Pending')].shape[0]
-    
     patients_visited_today_df = df[df['chw_visit'] == 1]
     avg_patient_risk_visited = patients_visited_today_df['ai_risk_score'].mean() if not patients_visited_today_df.empty and patients_visited_today_df['ai_risk_score'].notna().any() else 0.0
-    
-    patients_low_spo2_visited = patients_visited_today_df[patients_visited_today_df.get('avg_spo2_pct', pd.Series(dtype=float)).notna() & (patients_visited_today_df.get('avg_spo2_pct', pd.Series(dtype=float)) < app_config.SPO2_LOW_THRESHOLD_PCT)].shape[0]
-    patients_fever_visited = patients_visited_today_df[patients_visited_today_df.get('max_skin_temp_celsius', pd.Series(dtype=float)).notna() & (patients_visited_today_df.get('max_skin_temp_celsius', pd.Series(dtype=float)) >= app_config.SKIN_TEMP_FEVER_THRESHOLD_C)].shape[0]
+    patients_low_spo2_visited = patients_visited_today_df[patients_visited_today_df['avg_spo2_pct'] < app_config.SPO2_LOW_THRESHOLD_PCT].shape[0] if 'avg_spo2_pct' in patients_visited_today_df and patients_visited_today_df['avg_spo2_pct'].notna().any() else 0
+    patients_fever_visited = patients_visited_today_df[patients_visited_today_df['max_skin_temp_celsius'] >= app_config.SKIN_TEMP_FEVER_THRESHOLD_C].shape[0] if 'max_skin_temp_celsius' in patients_visited_today_df and patients_visited_today_df['max_skin_temp_celsius'].notna().any() else 0
+    avg_chw_steps = pd.to_numeric(df.get('avg_daily_steps'), errors='coerce').mean() # Example: if avg_daily_steps is for CHW, this is how you'd get it from df_chw_view
+    avg_chw_sleep_score = pd.to_numeric(df.get('sleep_score_pct'), errors='coerce').mean()
+    return {"visits_today": visits_today, "tb_contacts_to_trace": tb_contacts_to_trace, "sti_symptomatic_referrals": sti_symptomatic_referrals, "avg_patient_risk_visited": avg_patient_risk_visited if pd.notna(avg_patient_risk_visited) else 0.0, "patients_low_spo2_visited": patients_low_spo2_visited, "patients_fever_visited": patients_fever_visited, "avg_chw_steps": avg_chw_steps if pd.notna(avg_chw_steps) else 0, "avg_chw_sleep_score": avg_chw_sleep_score if pd.notna(avg_chw_sleep_score) else 0}
 
-    return {"visits_today": visits_today, "tb_contacts_to_trace": tb_contacts_to_trace, "sti_symptomatic_referrals": sti_symptomatic_referrals, "avg_patient_risk_visited": avg_patient_risk_visited if pd.notna(avg_patient_risk_visited) else 0.0, "patients_low_spo2_visited": patients_low_spo2_visited, "patients_fever_visited": patients_fever_visited}
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_patient_alerts_for_chw(df_chw_view, risk_threshold=None):
-    # ... (Function as provided in the previous complete code, which robustly handles missing sensor columns) ...
-    if df_chw_view is None or df_chw_view.empty: return pd.DataFrame()
-    df_copy = df_chw_view.copy()
-    df_copy['date'] = pd.to_datetime(df_copy.get('date'), errors='coerce'); df_copy['test_date'] = pd.to_datetime(df_copy.get('test_date'), errors='coerce'); df_copy.dropna(subset=['date'], inplace=True)
+    if df_chw_view.empty: return pd.DataFrame()
+    df_copy = df_chw_view.copy(); df_copy['date'] = pd.to_datetime(df_copy.get('date'), errors='coerce'); df_copy['test_date'] = pd.to_datetime(df_copy.get('test_date'), errors='coerce'); df_copy.dropna(subset=['date'], inplace=True)
     if df_copy.empty: return pd.DataFrame()
-
-    # Initialize all potentially used columns robustly (as done in the core processing function)
-    # Re-doing here for safety if this is called with a subset df that might miss columns
-    numeric_cols_to_init_nan = ['ai_risk_score', 'min_spo2_pct', 'max_skin_temp_celsius']
-    for col in numeric_cols_to_init_nan:
+    numeric_cols_to_init_nan_chw = ['ai_risk_score', 'min_spo2_pct', 'max_skin_temp_celsius']; numeric_cols_to_init_zero_chw = ['tb_contact_traced', 'fall_detected_today']; string_cols_to_init_unknown_chw = ['test_result', 'condition', 'referral_status', 'patient_id', 'zone_id']
+    for col in numeric_cols_to_init_nan_chw: 
         if col not in df_copy.columns: df_copy[col] = np.nan
         df_copy[col] = pd.to_numeric(df_copy[col], errors='coerce')
-
-    numeric_cols_to_init_zero = ['tb_contact_traced', 'fall_detected_today']
-    for col in numeric_cols_to_init_zero:
+    for col in numeric_cols_to_init_zero_chw: 
         if col not in df_copy.columns: df_copy[col] = 0
         df_copy[col] = pd.to_numeric(df_copy[col], errors='coerce').fillna(0)
-        
-    string_cols_to_init_unknown = ['test_result', 'condition', 'referral_status', 'patient_id', 'zone_id']
-    for col in string_cols_to_init_unknown:
+    for col in string_cols_to_init_unknown_chw: 
         if col not in df_copy.columns: df_copy[col] = 'Unknown'
         df_copy[col] = df_copy[col].astype(str).fillna('Unknown')
-
     risk_thresh = risk_threshold if risk_threshold is not None else app_config.RISK_THRESHOLDS['chw_alert_moderate']
-    
-    # Build conditions safely, ensuring Series for bitwise operations
     cond_risk = df_copy['ai_risk_score'].notna() & (df_copy['ai_risk_score'] >= risk_thresh)
-    cond_tb_trace = (df_copy['condition'] == 'TB') & (df_copy['tb_contact_traced'] == 0)
-    cond_tb_referral = (df_copy['condition'] == 'TB') & (df_copy['referral_status'] == 'Pending')
-    cond_sti_referral = df_copy['condition'].str.startswith("STI-", na=False) & (df_copy['referral_status'] == 'Pending')
-    cond_hiv_referral = (df_copy['condition'] == 'HIV-Positive') & (df_copy['referral_status'] == 'Pending')
-    cond_pneumonia_risk = (df_copy['condition'] == 'Pneumonia') & df_copy['ai_risk_score'].notna() & (df_copy['ai_risk_score'] >= app_config.RISK_THRESHOLDS['moderate'])
-    cond_low_spo2 = df_copy['min_spo2_pct'].notna() & (df_copy['min_spo2_pct'] < app_config.SPO2_LOW_THRESHOLD_PCT)
-    cond_fever = df_copy['max_skin_temp_celsius'].notna() & (df_copy['max_skin_temp_celsius'] >= app_config.SKIN_TEMP_FEVER_THRESHOLD_C)
-    cond_fall = df_copy['fall_detected_today'] > 0
-
-    alert_conditions = cond_risk | cond_tb_trace | cond_tb_referral | cond_sti_referral | \
-                       cond_hiv_referral | cond_pneumonia_risk | cond_low_spo2 | cond_fever | cond_fall
-    
-    alerts_df = df_copy[alert_conditions].copy()
+    cond_tb_trace = (df_copy.get('condition', pd.Series(dtype=str)) == 'TB') & (df_copy.get('tb_contact_traced', pd.Series(dtype=float)) == 0)
+    cond_tb_referral = (df_copy.get('condition', pd.Series(dtype=str)) == 'TB') & (df_copy.get('referral_status', pd.Series(dtype=str)) == 'Pending')
+    cond_sti_referral = df_copy.get('condition', pd.Series(dtype=str)).str.startswith("STI-", na=False) & (df_copy.get('referral_status', pd.Series(dtype=str)) == 'Pending')
+    cond_hiv_referral = (df_copy.get('condition', pd.Series(dtype=str)) == 'HIV-Positive') & (df_copy.get('referral_status', pd.Series(dtype=str)) == 'Pending')
+    cond_pneumonia_risk = (df_copy.get('condition', pd.Series(dtype=str)) == 'Pneumonia') & df_copy['ai_risk_score'].notna() & (df_copy['ai_risk_score'] >= app_config.RISK_THRESHOLDS['moderate'])
+    cond_low_spo2 = df_copy.get('min_spo2_pct', pd.Series(dtype=float)).notna() & (df_copy.get('min_spo2_pct', pd.Series(dtype=float)) < app_config.SPO2_LOW_THRESHOLD_PCT)
+    cond_fever = df_copy.get('max_skin_temp_celsius', pd.Series(dtype=float)).notna() & (df_copy.get('max_skin_temp_celsius', pd.Series(dtype=float)) >= app_config.SKIN_TEMP_FEVER_THRESHOLD_C)
+    cond_fall = df_copy.get('fall_detected_today', pd.Series(dtype=float)) > 0
+    alert_conditions = cond_risk | cond_tb_trace | cond_tb_referral | cond_sti_referral | cond_hiv_referral | cond_pneumonia_risk | cond_low_spo2 | cond_fever | cond_fall
+    alerts_df = df_copy[alert_conditions].copy(); 
     if alerts_df.empty: return pd.DataFrame()
-
     def determine_reason_chw_focused_extended(row):
         if pd.notna(row.get('fall_detected_today')) and row.get('fall_detected_today', 0) > 0: return f"Fall Detected"
         if pd.notna(row.get('min_spo2_pct')) and row.get('min_spo2_pct', 101) < app_config.SPO2_LOW_THRESHOLD_PCT: return f"Low SpO2 ({row.get('min_spo2_pct', 0):.0f}%)"
@@ -455,135 +439,100 @@ def get_patient_alerts_for_chw(df_chw_view, risk_threshold=None):
         if row.get('condition') == 'Pneumonia' and pd.notna(row.get('ai_risk_score')) and row.get('ai_risk_score', 0) >= app_config.RISK_THRESHOLDS['moderate']: return f"Pneumonia (Risk: {row.get('ai_risk_score', 0):.0f})"
         if pd.notna(row.get('ai_risk_score')) and row.get('ai_risk_score', 0) >= risk_thresh: return f"High Risk ({row.get('ai_risk_score', 0):.0f})"
         return "Review Case"
-        
-    alerts_df['alert_reason'] = alerts_df.apply(determine_reason_chw_focused_extended, axis=1)
-    alerts_df = alerts_df.sort_values(by=['ai_risk_score', 'date'], ascending=[False, False])
-    alerts_df.drop_duplicates(subset=['patient_id'], keep='first', inplace=True)
-
-    output_cols = ['patient_id', 'zone_id', 'condition', 'ai_risk_score', 'alert_reason', 'referral_status', 'date', 
-                   'min_spo2_pct', 'max_skin_temp_celsius', 'fall_detected_today']
-    existing_output_cols = [col for col in output_cols if col in alerts_df.columns]
+    alerts_df['alert_reason'] = alerts_df.apply(determine_reason_chw_focused_extended, axis=1); alerts_df = alerts_df.sort_values(by=['ai_risk_score', 'date'], ascending=[False, False]); alerts_df.drop_duplicates(subset=['patient_id'], keep='first', inplace=True)
+    output_cols = ['patient_id', 'zone_id', 'condition', 'ai_risk_score', 'alert_reason', 'referral_status', 'date', 'min_spo2_pct', 'max_skin_temp_celsius', 'fall_detected_today']; existing_output_cols = [col for col in output_cols if col in alerts_df.columns]
     return alerts_df[existing_output_cols]
-
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_clinic_summary(df_clinic_view):
-    if df_clinic_view is None or df_clinic_view.empty: return {"tb_sputum_positivity": 0.0, "malaria_rdt_positivity": 0.0, "sti_tests_pending":0, "hiv_tests_done_period":0, "critical_disease_supply_items": 0}
+    if df_clinic_view.empty: return {"tb_sputum_positivity": 0.0, "malaria_rdt_positivity": 0.0, "sti_tests_pending":0, "hiv_tests_done_period":0, "critical_disease_supply_items": 0}
     df = df_clinic_view.copy(); 
-    for col_str in ['test_type', 'test_result', 'supply_item', 'condition']: df[col_str] = df.get(col_str, 'Unknown').astype(str)
-    df['test_turnaround_days'] = pd.to_numeric(df.get('test_turnaround_days'), errors='coerce')
+    for col_str in ['test_type', 'test_result', 'supply_item', 'condition']: df[col_str] = df.get(col_str, pd.Series(dtype='str')).astype(str).fillna('Unknown')
     df['supply_level_days'] = pd.to_numeric(df.get('supply_level_days'), errors='coerce')
-
-    tb_tests = df[df['test_type'].str.contains("Sputum", case=False, na=False)]
-    tb_positive = tb_tests[tb_tests['test_result'] == 'Positive'].shape[0]
-    tb_total_conclusive = tb_tests[~tb_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]
-    tb_sputum_positivity = (tb_positive / tb_total_conclusive) * 100 if tb_total_conclusive > 0 else 0.0
-
-    malaria_tests = df[df['test_type'].str.contains("RDT-Malaria", case=False, na=False)]
-    malaria_positive = malaria_tests[malaria_tests['test_result'] == 'Positive'].shape[0]
-    malaria_total_conclusive = malaria_tests[~malaria_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]
-    malaria_rdt_positivity = (malaria_positive / malaria_total_conclusive) * 100 if malaria_total_conclusive > 0 else 0.0
-
-    sti_tests_pending = df[(df['test_type'].isin(app_config.CRITICAL_TESTS_PENDING)) & (df['condition'].str.startswith("STI-", na=False)) & (df['test_result'] == 'Pending')].shape[0]
-    hiv_tests_done_period = df[df['test_type'].str.contains("HIV", case=False, na=False) & (~df['test_result'].isin(['Pending','N/A','Unknown','nan'])) ].shape[0]
-
+    tb_tests = df[df['test_type'].str.contains("Sputum", case=False, na=False)]; tb_positive = tb_tests[tb_tests['test_result'] == 'Positive'].shape[0]; tb_total_conclusive = tb_tests[~tb_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]; tb_sputum_positivity = (tb_positive / tb_total_conclusive) * 100 if tb_total_conclusive > 0 else 0.0
+    malaria_tests = df[df['test_type'].str.contains("RDT-Malaria", case=False, na=False)]; malaria_positive = malaria_tests[malaria_tests['test_result'] == 'Positive'].shape[0]; malaria_total_conclusive = malaria_tests[~malaria_tests['test_result'].isin(['Pending', 'N/A', 'Unknown', 'nan'])].shape[0]; malaria_rdt_positivity = (malaria_positive / malaria_total_conclusive) * 100 if malaria_total_conclusive > 0 else 0.0
+    sti_tests_pending = df[(df['test_type'].isin(app_config.CRITICAL_TESTS_PENDING)) & (df['condition'].str.startswith("STI-", na=False)) & (df['test_result'] == 'Pending')].shape[0] 
+    hiv_tests_done_period = df[df['test_type'].str.contains("HIV", case=False, na=False) & (~df['test_result'].isin(['Pending','N/A','Unknown','nan'])) ].shape[0] 
     key_disease_supplies_substrings = ['TB-Regimen', 'ACT', 'ARV-Regimen', 'Penicillin', 'Ceftriaxone', 'Iron-Folate', 'Amoxicillin', 'Benznidazole', 'ORS', 'Oxygen']
     critical_disease_supply_items = df[(df['supply_level_days'].notna()) & (df['supply_level_days'] <= app_config.CRITICAL_SUPPLY_DAYS) & (df['supply_item'].str.contains('|'.join(key_disease_supplies_substrings), case=False, na=False))]['supply_item'].nunique()
-
     return {"tb_sputum_positivity": tb_sputum_positivity, "malaria_rdt_positivity": malaria_rdt_positivity, "sti_tests_pending": sti_tests_pending, "hiv_tests_done_period": hiv_tests_done_period, "critical_disease_supply_items": critical_disease_supply_items}
-
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_clinic_environmental_summary(df_iot_clinic_view):
-    if df_iot_clinic_view is None or df_iot_clinic_view.empty: return {"avg_co2": 0, "co2_alert_rooms": 0, "avg_pm25": 0, "pm25_alert_rooms": 0, "avg_occupancy":0, "high_occupancy_alert": False, "avg_sanitizer_use_hr":0}
+    if df_iot_clinic_view.empty: return {"avg_co2": 0, "co2_alert_rooms": 0, "avg_pm25": 0, "pm25_alert_rooms": 0, "avg_occupancy":0, "high_occupancy_alert": False, "avg_sanitizer_use_hr":0}
     df = df_iot_clinic_view.copy()
-    cols_to_num = ['avg_co2_ppm', 'max_co2_ppm', 'avg_pm25', 'voc_index', 'avg_temp_celsius', 'avg_humidity_rh', 'avg_noise_db', 'waiting_room_occupancy', 'patient_throughput_per_hour', 'sanitizer_dispenses_per_hour']
-    for col in cols_to_num: df[col] = pd.to_numeric(df.get(col), errors='coerce')
-    
+    cols_to_num_iot = ['avg_co2_ppm', 'max_co2_ppm', 'avg_pm25', 'voc_index', 'avg_temp_celsius', 'avg_humidity_rh', 'avg_noise_db', 'waiting_room_occupancy', 'patient_throughput_per_hour', 'sanitizer_dispenses_per_hour']
+    for col_iot in cols_to_num_iot: df[col_iot] = pd.to_numeric(df.get(col_iot), errors='coerce') # Use .get()
     avg_co2 = df.get('avg_co2_ppm', pd.Series(dtype='float')).mean(); avg_pm25 = df.get('avg_pm25', pd.Series(dtype='float')).mean(); avg_occupancy = df.get('waiting_room_occupancy', pd.Series(dtype='float')).mean(); avg_sanitizer_use_hr = df.get('sanitizer_dispenses_per_hour', pd.Series(dtype='float')).mean()
-    
     latest_iot_per_room = pd.DataFrame()
-    if 'timestamp' in df and 'clinic_id' in df and 'room_name' in df:
-        latest_iot_per_room = df.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
-    
+    if 'timestamp' in df and 'clinic_id' in df and 'room_name' in df: latest_iot_per_room = df.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
     co2_alert_rooms = latest_iot_per_room[latest_iot_per_room.get('avg_co2_ppm', pd.Series(dtype='float')) > app_config.CO2_LEVEL_ALERT_PPM].shape[0] if not latest_iot_per_room.empty else 0
     pm25_alert_rooms = latest_iot_per_room[latest_iot_per_room.get('avg_pm25', pd.Series(dtype='float')) > app_config.PM25_ALERT_UGM3].shape[0] if not latest_iot_per_room.empty else 0
     high_occupancy_alert = (latest_iot_per_room.get('waiting_room_occupancy', pd.Series(dtype='float')) > app_config.TARGET_WAITING_ROOM_OCCUPANCY).any() if not latest_iot_per_room.empty and latest_iot_per_room.get('waiting_room_occupancy', pd.Series(dtype='float')).notna().any() else False
-    
     return {"avg_co2": avg_co2 if pd.notna(avg_co2) else 0, "co2_alert_rooms": co2_alert_rooms, "avg_pm25": avg_pm25 if pd.notna(avg_pm25) else 0, "pm25_alert_rooms": pm25_alert_rooms, "avg_occupancy": avg_occupancy if pd.notna(avg_occupancy) else 0, "high_occupancy_alert": bool(high_occupancy_alert), "avg_sanitizer_use_hr": avg_sanitizer_use_hr if pd.notna(avg_sanitizer_use_hr) else 0}
-
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_patient_alerts_for_clinic(df_clinic_view, risk_threshold=None):
-    if df_clinic_view is None or df_clinic_view.empty: return pd.DataFrame()
+    if df_clinic_view.empty: return pd.DataFrame()
     df = df_clinic_view.copy(); df['date'] = pd.to_datetime(df.get('date'), errors='coerce'); df['test_date'] = pd.to_datetime(df.get('test_date'), errors='coerce'); df.dropna(subset=['date'], inplace=True)
     if df.empty: return pd.DataFrame()
-    
     df['ai_risk_score'] = pd.to_numeric(df.get('ai_risk_score'), errors='coerce')
     for col_str_ca in ['test_result', 'condition', 'referral_status', 'patient_id', 'zone_id', 'test_type']: df[col_str_ca] = df.get(col_str_ca, 'Unknown').astype(str).fillna('Unknown')
-    
-    risk_thresh = risk_threshold if risk_threshold is not None else app_config.RISK_THRESHOLDS['moderate']
-    latest_view_date = df['date'].max()
-    recent_test_cutoff = latest_view_date - pd.Timedelta(days=7)
-
+    risk_thresh = risk_threshold if risk_threshold is not None else app_config.RISK_THRESHOLDS['moderate']; latest_view_date = df['date'].max(); recent_test_cutoff = latest_view_date - pd.Timedelta(days=7)
     cond1_ca = df['ai_risk_score'].notna() & (df['ai_risk_score'] >= risk_thresh)
-    cond2_ca = (df['test_result'] == 'Positive') & df['test_date'].notna() & (df['test_date'] >= recent_test_cutoff)
-    cond3_ca = (df['test_result'] == 'Pending') & (df['condition'].isin(app_config.KEY_CONDITIONS_FOR_TRENDS)) & (df['test_type'].isin(app_config.CRITICAL_TESTS_PENDING))
-    
-    alert_conditions = cond1_ca | cond2_ca | cond3_ca
-    alerts_df = df[alert_conditions].copy()
+    cond2_ca = (df.get('test_result', pd.Series(dtype=str)) == 'Positive') & df.get('test_date', pd.Series(dtype='datetime64[ns]')).notna() & (df.get('test_date', pd.Series(dtype='datetime64[ns]')) >= recent_test_cutoff)
+    cond3_ca = (df.get('test_result', pd.Series(dtype=str)) == 'Pending') & (df.get('condition', pd.Series(dtype=str)).isin(app_config.KEY_CONDITIONS_FOR_TRENDS)) & (df.get('test_type', pd.Series(dtype=str)).isin(app_config.CRITICAL_TESTS_PENDING))
+    alert_conditions = cond1_ca | cond2_ca | cond3_ca; alerts_df = df[alert_conditions].copy()
     if alerts_df.empty: return pd.DataFrame()
-
-    def determine_reason_clinic(row):
-        if pd.notna(row.get('ai_risk_score')) and row.get('ai_risk_score', 0) >= risk_thresh: return f"High Risk ({row.get('ai_risk_score',0):.0f})"
-        if row.get('test_result') == 'Positive' and pd.notna(row.get('test_date')) and row.get('test_date', pd.Timestamp.min) >= recent_test_cutoff: return f"Recent Positive ({row.get('condition')})"
+    def determine_reason_clinic(row): # Ensure row.get() for safety
+        if pd.notna(row.get('ai_risk_score')) and row.get('ai_risk_score', 0) >= risk_thresh: return f"High Risk ({row['ai_risk_score']:.0f})"
+        if row.get('test_result') == 'Positive' and pd.notna(row.get('test_date')) and row['test_date'] >= recent_test_cutoff: return f"Recent Positive ({row.get('condition')})"
         if row.get('test_result') == 'Pending' and row.get('condition') in app_config.KEY_CONDITIONS_FOR_TRENDS and row.get('test_type') in app_config.CRITICAL_TESTS_PENDING: return f"Pending Critical Test ({row.get('condition')})"
         return "Review Case"
-        
-    alerts_df['alert_reason'] = alerts_df.apply(determine_reason_clinic, axis=1)
-    alerts_df = alerts_df.sort_values(by=['ai_risk_score', 'date'], ascending=[False, False])
-    alerts_df.drop_duplicates(subset=['patient_id'], keep='first', inplace=True)
-    
-    output_cols_ca = ['patient_id', 'zone_id', 'condition', 'ai_risk_score', 'test_result', 'referral_status', 'alert_reason', 'date']
-    existing_output_cols_ca = [col for col in output_cols_ca if col in alerts_df.columns]
+    alerts_df['alert_reason'] = alerts_df.apply(determine_reason_clinic, axis=1); alerts_df = alerts_df.sort_values(by=['ai_risk_score', 'date'], ascending=[False, False]); alerts_df.drop_duplicates(subset=['patient_id'], keep='first', inplace=True)
+    output_cols_ca = ['patient_id', 'zone_id', 'condition', 'ai_risk_score', 'test_result', 'referral_status', 'alert_reason', 'date']; existing_output_cols_ca = [col for col in output_cols_ca if col in alerts_df.columns]
     return alerts_df[existing_output_cols_ca]
-
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_trend_data(df, value_col, date_col='date', period='D', agg_func='mean'):
-    if df is None or df.empty or value_col not in df.columns or date_col not in df.columns: 
-        logger.warning(f"Trend: '{value_col}' - DataFrame empty or columns missing."); 
-        return pd.Series(dtype='float64').rename_axis(date_col if date_col in df.columns else 'date')
+    # Check if df is None or empty, or if essential columns are missing
+    if df is None or df.empty or value_col not in df.columns or date_col not in df.columns:
+        logger.warning(f"Trend: '{value_col}' - DataFrame is None, empty or essential columns missing."); 
+        return pd.Series(dtype='float64').rename_axis(date_col if date_col in (df.columns if df is not None else []) else 'date')
+    
     df_copy = df.copy()
     try:
-        df_copy[date_col] = pd.to_datetime(df_copy.get(date_col), errors='coerce')
-        # Use .get() for value_col as well before conversion
-        if agg_func in ['mean', 'sum', 'nunique']: # Nunique needs values for hashing
-             df_copy[value_col] = df_copy.get(value_col, pd.Series(dtype=float if agg_func in ['mean', 'sum'] else object)) # Get with default series type
-        else: # Other agg funcs (like count) just need the column existence
-             if value_col not in df_copy.columns: df_copy[value_col] = pd.NA # Ensure col exists
-
-
-        if agg_func in ['mean', 'sum']: df_copy[value_col] = pd.to_numeric(df_copy[value_col], errors='coerce')
+        # Ensure date_col is datetime
+        if not pd.api.types.is_datetime64_any_dtype(df_copy[date_col]):
+            df_copy[date_col] = pd.to_datetime(df_copy.get(date_col), errors='coerce')
         
+        # For value_col, ensure it's numeric if we're doing mean/sum
+        if agg_func in ['mean', 'sum']:
+            if not pd.api.types.is_numeric_dtype(df_copy[value_col]):
+                 df_copy[value_col] = pd.to_numeric(df_copy.get(value_col), errors='coerce')
+        
+        # Drop rows where date_col or value_col became NaT/NaN after conversion (critical for groupby)
         df_copy.dropna(subset=[date_col, value_col], inplace=True)
+        
         if df_copy.empty: 
-            logger.warning(f"Trend: '{value_col}' - No valid data after NaT/NaN drop."); 
+            logger.warning(f"Trend: '{value_col}' - No valid data points left after NaT/NaN drop."); 
             return pd.Series(dtype='float64').rename_axis(df_copy[date_col].name if date_col in df_copy and df_copy[date_col] is not None else 'date')
 
+        # Perform aggregation
         if agg_func == 'count': trend = df_copy.groupby(pd.Grouper(key=date_col, freq=period))[value_col].count()
         elif agg_func == 'sum': trend = df_copy.groupby(pd.Grouper(key=date_col, freq=period))[value_col].sum()
         elif agg_func == 'nunique': trend = df_copy.groupby(pd.Grouper(key=date_col, freq=period))[value_col].nunique()
         else: trend = df_copy.groupby(pd.Grouper(key=date_col, freq=period))[value_col].mean()
-        return trend.fillna(0) # Fill periods with no data with 0
-    except Exception as e: 
+        
+        return trend.fillna(0) # Fill any resulting NaNs from Grouper (e.g., empty periods)
+    except Exception as e: # pragma: no cover
         logger.error(f"Trend Error for '{value_col}': {e}", exc_info=True); 
-        return pd.Series(dtype='float64').rename_axis(df.get(date_col).name if date_col in df and df.get(date_col) is not None else 'date')
+        return pd.Series(dtype='float64').rename_axis(df[date_col].name if date_col in df and df[date_col] is not None else 'date')
 
 
 @st.cache_data(hash_funcs={pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None})
 def get_supply_forecast_data(df_health_records, forecast_days_out=7):
-    if df_health_records is None or df_health_records.empty: return pd.DataFrame(columns=['date', 'item', 'forecast_days', 'lower_ci', 'upper_ci'])
+    if df_health_records.empty: return pd.DataFrame(columns=['date', 'item', 'forecast_days', 'lower_ci', 'upper_ci'])
     df = df_health_records.copy(); df['date'] = pd.to_datetime(df.get('date'), errors='coerce'); df['supply_item'] = df.get('supply_item','Unknown').astype(str).fillna('Unknown'); df['supply_level_days'] = pd.to_numeric(df.get('supply_level_days'), errors='coerce')
     latest_supplies = df[~df['supply_item'].isin(['Unknown', 'N/A', 'nan'])].sort_values('date').drop_duplicates(subset=['supply_item'], keep='last'); latest_supplies = latest_supplies[latest_supplies['supply_level_days'].notna() & (latest_supplies['supply_level_days'] > 0)]
     if latest_supplies.empty: return pd.DataFrame(columns=['date', 'item', 'forecast_days', 'lower_ci', 'upper_ci'])
@@ -603,41 +552,22 @@ def get_supply_forecast_data(df_health_records, forecast_days_out=7):
 def get_district_summary_kpis(enriched_zone_gdf):
     if enriched_zone_gdf is None or enriched_zone_gdf.empty: return {"avg_population_risk": 0.0, "overall_facility_coverage": 0.0, "zones_high_risk": 0, "district_tb_burden":0, "district_malaria_burden":0, "avg_zone_co2":0.0 }
     gdf = enriched_zone_gdf.copy()
-    # Ensure all required columns for calculation exist and are numeric, fill with 0 if not.
-    cols_to_check = ['population', 'avg_risk_score', 'facility_coverage_score', 
-                     'active_tb_cases', 'active_malaria_cases', 'hiv_positive_cases', 'pneumonia_cases', 'anemia_cases', 'sti_cases', 'ntd_chagas_cases', # Disease counts from enrichment
-                     'avg_daily_steps_zone', 'avg_spo2_zone', # Wearable zone averages
-                     'zone_avg_co2', 'zone_max_co2'] # IoT zone averages
+    # Use .get() and provide default Series if column might be missing, then operate on that.
+    cols_to_check_dist = { # Colname: default_value_if_missing_altogether
+        'population': 0.0, 'avg_risk_score': 0.0, 'facility_coverage_score': 0.0, 
+        'active_tb_cases': 0.0, 'active_malaria_cases': 0.0, 'zone_avg_co2': 0.0
+    }
+    for col_kpi_dist, default_val in cols_to_check_dist.items(): 
+        gdf[col_kpi_dist] = pd.to_numeric(gdf.get(col_kpi_dist, default_val), errors='coerce').fillna(0)
 
-    for col_kpi in cols_to_check: 
-        if col_kpi in gdf.columns: gdf[col_kpi] = pd.to_numeric(gdf[col_kpi], errors='coerce').fillna(0)
-        else: gdf[col_kpi] = 0.0 # Create if missing
-    
-    total_population = gdf.get('population', pd.Series(dtype='float')).sum()
+    total_population = gdf['population'].sum()
     avg_pop_risk = (gdf['avg_risk_score'] * gdf['population']).sum() / total_population if total_population > 0 else 0.0
     overall_facility_coverage = (gdf['facility_coverage_score'] * gdf['population']).sum() / total_population if total_population > 0 else 0.0
     zones_high_risk = gdf[gdf['avg_risk_score'] >= app_config.RISK_THRESHOLDS['district_zone_high_risk']].shape[0]
-
-    # Sum disease cases across zones
-    district_tb_burden = gdf.get('active_tb_cases', pd.Series(dtype='float')).sum()
-    district_malaria_burden = gdf.get('active_malaria_cases', pd.Series(dtype='float')).sum()
-    district_hiv_burden = gdf.get('hiv_positive_cases', pd.Series(dtype='float')).sum()
-    district_pneumonia_burden = gdf.get('pneumonia_cases', pd.Series(dtype='float')).sum()
-    district_anemia_burden = gdf.get('anemia_cases', pd.Series(dtype='float')).sum()
-    district_sti_burden = gdf.get('sti_cases', pd.Series(dtype='float')).sum()
-    district_ntd_burden = gdf.get('ntd_chagas_cases', pd.Series(dtype='float')).sum() # Example NTD
-
-
-    # District average sensor data (average of zone averages)
-    avg_zone_co2 = gdf.get('zone_avg_co2', pd.Series(dtype='float')).mean() if gdf.get('zone_avg_co2', pd.Series(dtype='float')).notna().any() else 0.0
-    avg_patient_steps_district = gdf.get('avg_daily_steps_zone', pd.Series(dtype='float')).mean() if gdf.get('avg_daily_steps_zone', pd.Series(dtype='float')).notna().any() else 0.0
-
-
-    return {"avg_population_risk": avg_pop_risk, "overall_facility_coverage": overall_facility_coverage,
-            "zones_high_risk": zones_high_risk,
-            "district_tb_burden": district_tb_burden, "district_malaria_burden": district_malaria_burden,
-            "district_hiv_burden": district_hiv_burden, "district_pneumonia_burden": district_pneumonia_burden,
-            "district_anemia_burden": district_anemia_burden, "district_sti_burden": district_sti_burden,
-            "district_ntd_burden": district_ntd_burden,
-            "avg_zone_co2": avg_zone_co2,
-            "avg_patient_steps_district": avg_patient_steps_district} # Added new KPIs
+    district_tb_burden = gdf['active_tb_cases'].sum(); district_malaria_burden = gdf['active_malaria_cases'].sum()
+    avg_zone_co2_series = gdf.get('zone_avg_co2', pd.Series(dtype='float'))
+    avg_zone_co2 = avg_zone_co2_series.mean() if avg_zone_co2_series.notna().any() else 0.0
+    
+    return {"avg_population_risk": avg_pop_risk, "overall_facility_coverage": overall_facility_coverage, 
+            "zones_high_risk": zones_high_risk, "district_tb_burden": district_tb_burden, 
+            "district_malaria_burden": district_malaria_burden, "avg_zone_co2": avg_zone_co2}
