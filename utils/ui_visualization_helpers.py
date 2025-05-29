@@ -325,15 +325,38 @@ def plot_annotated_line_chart(
     height: int = None, show_anomalies: bool = True, date_format: str = "%b %Y" # Example: "Jan 2023"
 ):
     final_height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT
+    fig_empty_layout = go.Layout(title_text=f"{title} (No data available)", height=final_height,
+                                 xaxis={'visible': False}, yaxis={'visible': False},
+                                 annotations=[dict(text="No data to display", xref="paper", yref="paper",
+                                                   showarrow=False, font=dict(size=14))])
     if not isinstance(data_series, pd.Series) or data_series.empty:
         logger.warning(f"Empty or invalid data_series for line chart: {title}")
-        return _create_empty_figure(title, final_height)
+        return go.Figure(layout=fig_empty_layout)
 
     fig = go.Figure()
-    try: line_color = color if color else pio.templates.default.layout.colorway[0]
-    except IndexError: line_color = color if color else "#007bff" # Fallback if colorway is empty
+    
+    # --- CORRECTED line_color ASSIGNMENT ---
+    line_color = color # Use provided color if any
+    if not line_color: # If no color is provided, try to get from theme
+        try:
+            # Access the registered template object directly
+            current_template_obj = pio.templates["custom_health_theme"]
+            if hasattr(current_template_obj, 'layout') and hasattr(current_template_obj.layout, 'colorway') and current_template_obj.layout.colorway:
+                line_color = current_template_obj.layout.colorway[0]
+            else: # Fallback if colorway not found in custom theme's layout
+                logger.debug("Colorway not found in custom_health_theme.layout, trying Plotly's default theme's colorway.")
+                plotly_default_template = pio.templates["plotly"] # Access the base "plotly" template
+                if hasattr(plotly_default_template, 'layout') and hasattr(plotly_default_template.layout, 'colorway') and plotly_default_template.layout.colorway:
+                    line_color = plotly_default_template.layout.colorway[0]
+                else: # Absolute fallback
+                    line_color = "#007bff" 
+                    logger.warning("Could not retrieve default colorway from Plotly templates. Using hardcoded default blue for line chart.")
+        except Exception as e_color:
+            logger.warning(f"Error accessing template colorway for line chart '{title}': {e_color}. Using hardcoded default blue.")
+            line_color = "#007bff" # Hardcoded fallback blue if all else fails
+    # --- END OF CORRECTED line_color ASSIGNMENT ---
 
-    # Main line trace
+
     fig.add_trace(go.Scatter(
         x=data_series.index, y=data_series.values, mode="lines+markers", name=y_axis_title,
         line=dict(color=line_color, width=2.8), marker=dict(size=7, symbol='circle'),
@@ -346,7 +369,6 @@ def plot_annotated_line_chart(
     # Confidence Interval
     if show_ci and lower_bound_series is not None and upper_bound_series is not None and \
        not lower_bound_series.empty and not upper_bound_series.empty:
-        # Ensure common index and numeric types for CI bounds
         common_idx_ci = data_series.index.intersection(lower_bound_series.index).intersection(upper_bound_series.index)
         if not common_idx_ci.empty:
             ls = pd.to_numeric(lower_bound_series.reindex(common_idx_ci), errors='coerce')
@@ -356,11 +378,17 @@ def plot_annotated_line_chart(
                 x_ci_plot = common_idx_ci[valid_ci_mask]
                 y_upper_plot = us[valid_ci_mask]
                 y_lower_plot = ls[valid_ci_mask]
+                
+                # Ensure fillcolor is valid by parsing the line_color
+                fill_color_rgba = f"rgba({','.join(str(int(c, 16)) for c in (line_color[1:3], line_color[3:5], line_color[5:7]))},0.18)" \
+                                   if line_color.startswith('#') and len(line_color) == 7 else "rgba(0,123,255,0.18)" # Default fill if color parse fails
+
+
                 fig.add_trace(go.Scatter(
-                    x=list(x_ci_plot) + list(x_ci_plot[::-1]), # x, then x reversed
-                    y=list(y_upper_plot.values) + list(y_lower_plot.values[::-1]), # upper, then lower reversed
+                    x=list(x_ci_plot) + list(x_ci_plot[::-1]), 
+                    y=list(y_upper_plot.values) + list(y_lower_plot.values[::-1]), 
                     fill="toself",
-                    fillcolor=f"rgba({','.join(str(int(c, 16)) for c in (line_color[1:3], line_color[3:5], line_color[5:7]))},0.18)", # Transparent version of line_color
+                    fillcolor=fill_color_rgba, 
                     line=dict(width=0), name="Confidence Interval", hoverinfo='skip'
                 ))
 
@@ -396,8 +424,8 @@ def plot_annotated_line_chart(
     final_xaxis_title = data_series.index.name if data_series.index.name else "Date"
     fig.update_layout(
         title_text=title, xaxis_title=final_xaxis_title, yaxis_title=y_axis_title,
-        height=final_height, hovermode="x unified", # 'x unified' shows all series values for a given x
-        legend=dict(traceorder='normal') # 'normal' puts main trace first
+        height=final_height, hovermode="x unified", 
+        legend=dict(traceorder='normal') 
     )
     return fig
 
