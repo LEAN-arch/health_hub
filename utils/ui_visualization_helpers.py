@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import logging
 import plotly.io as pio
-from config import app_config
+from config import app_config # Assuming app_config is in a directory accessible by Python's import system (e.g. root or in PYTHONPATH)
 import html
-import geopandas as gpd # Keep for type hints, though not directly used in this snippet
+import geopandas as gpd
 import os
 
 # Configure logging
@@ -45,25 +45,22 @@ def set_custom_plotly_theme():
     pio.templates["custom_health_theme"] = custom_theme
     pio.templates.default = "plotly+custom_health_theme"
 set_custom_plotly_theme()
-import html # Ensure this is imported
 
-def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None, icon_is_html=False): # icon_is_html is keyYou
+# --- Styled Components ---
+def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None, icon_is_html=False):
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}
-    status_final_class = status_class_map.get(status,'re right, the way I suggested using `<img>` tags with SVGs from "")
+    status_final_class = status_class_map.get(status, "")
     
     delta_str = str(delta) if delta is not None else ""
-    delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(delta_str)}</p>' if delta `svgrepo.com` directly as the `icon` parameter in `render_kpi_card` (even with else ""
+    delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(delta_str)}</p>' if delta else ""
     
     help_text_str = str(help_text) if help_text is not None else ""
     tooltip_html = f'title="{html.escape(help_text_str)}"' if help_text else ''
 
     icon_str = str(icon) if icon is not None else ""
-    # THIS IS THE CR `icon_is_html=True`) can be unreliable or might not render correctly across all browsers or Streamlit'UCIAL LINE FOR HTML ICONS:
-    icon_display = icon_str if icon_is_html else html.escape(icon_str) 
+    icon_display = icon_str if icon_is_html else html.escape(icon_str)
 
-    title_str = str(title) if title is not None elses rendering pipeline nuances if not perfectly styled or if the SVG source has issues.
-
-Streamlit's `st.markdown` has good support for standard emojis, but rendering arbitrary HTML/SVG images *inside* a custom HTML component passed to `st.markdown` can ""
+    title_str = str(title) if title is not None else ""
     value_str = str(value) if value is not None else ""
 
     html_content = f"""
@@ -75,11 +72,10 @@ Streamlit's `st.markdown` has good support for standard emojis, but rendering ar
     <div>
         <p class="kpi-value">{html.escape(value_str)}</p>
         {delta_html}
-    </div> sometimes be finicky with alignment and rendering if not perfectly managed.
-
-Let's go with the most robust and Stream
+    </div>
 </div>""".strip()
     st.markdown(html_content, unsafe_allow_html=True)
+
 def render_traffic_light(message, status, details=""):
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low", "Neutral": "status-neutral"}
     dot_status_class = status_class_map.get(status, "status-neutral")
@@ -124,18 +120,18 @@ def plot_layered_choropleth_map(
         logger.error(f"MAP_ERROR ({title}): Input 'gdf' is not a valid or non-empty GeoDataFrame.")
         return go.Figure().update_layout(title_text=f"{title} (No geographic data)", height=height, annotations=[dict(text="Map data unavailable", xref="paper", yref="paper", showarrow=False)])
     active_geom_col = gdf.geometry.name
-    if active_geom_col not in gdf.columns:
+    if active_geom_col not in gdf.columns: # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): Active geometry column '{active_geom_col}' not found. Columns: {gdf.columns.tolist()}")
         return go.Figure().update_layout(title_text=f"{title} (Missing geometry column)", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
-    if gdf.geometry.is_empty.all():
+    if gdf.geometry.is_empty.all(): # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): All geometries in gdf are empty.")
         return go.Figure().update_layout(title_text=f"{title} (All Geometries Empty)", height=height, annotations=[dict(text="Map geometry error", xref="paper", yref="paper", showarrow=False)])
     
     gdf_plot = gdf.copy()
-    if id_col not in gdf_plot.columns:
+    if id_col not in gdf_plot.columns: # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): ID column '{id_col}' not found in gdf_plot.")
         return go.Figure().update_layout(title_text=f"{title} (Missing ID column: {id_col})", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
-    if value_col not in gdf_plot.columns:
+    if value_col not in gdf_plot.columns: # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): Value column '{value_col}' not found in gdf_plot.")
         return go.Figure().update_layout(title_text=f"{title} (Missing value column: {value_col})", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
 
@@ -146,12 +142,12 @@ def plot_layered_choropleth_map(
         logger.warning(f"All values in '{value_col}' for '{title}' are NaN. Map may show shapes but no color variation.")
     
     gdf_for_geojson = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
-    if gdf_for_geojson.empty:
+    if gdf_for_geojson.empty: # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): No valid, non-empty geometries after filtering.")
         return go.Figure().update_layout(title_text=f"{title} (No valid geometries)", height=height, annotations=[dict(text="Map geometry processing error", xref="paper", yref="paper", showarrow=False)])
     try:
         geojson_interface = gdf_for_geojson.geometry.__geo_interface__
-        if not geojson_interface or not geojson_interface.get("features"):
+        if not geojson_interface or not geojson_interface.get("features"): # pragma: no cover
             logger.error(f"Failed to generate GeoJSON features for '{title}'.")
             return go.Figure().update_layout(title_text=f"{title} (GeoJSON generation error)", height=height)
         if geojson_interface.get('features'): logger.debug(f"GeoJSON Feature 0 Props for linking: {geojson_interface['features'][0]['properties'].get(featureidkey_prop)}")
@@ -163,7 +159,7 @@ def plot_layered_choropleth_map(
     default_hover_cols = ['name', 'population', value_col]; final_hover_cols = [col for col in (hover_cols if hover_cols else default_hover_cols) if col in gdf_plot.columns]
     
     current_mapbox_style = mapbox_style
-    if not MAPBOX_TOKEN_SET and mapbox_style not in ["open-street-map", "stamen-terrain", "stamen-toner", "stamen-watercolor"]:
+    if not MAPBOX_TOKEN_SET and mapbox_style not in ["open-street-map", "stamen-terrain", "stamen-toner", "stamen-watercolor"]: # pragma: no cover
         logger.warning(f"Mapbox token not set for style '{mapbox_style}', defaulting to 'open-street-map' for '{title}'.")
         current_mapbox_style = "open-street-map"
 
@@ -185,18 +181,18 @@ def plot_layered_choropleth_map(
             "hover_data": final_hover_cols, 
             "labels": {col: col.replace('_',' ').title() for col in [value_col] + final_hover_cols}
         }
-        plot_args.update(px_func_args) # Add mapbox_style, and EITHER center/zoom OR fitbounds
+        plot_args.update(px_func_args)
         
         fig = px.choropleth_mapbox(gdf_plot, **plot_args)
     except Exception as e_px: # pragma: no cover
         logger.error(f"MAP_ERROR ({title}): px.choropleth_mapbox call failed: {e_px}", exc_info=True)
-        st.error(f"Map rendering error for '{title}'. Please check logs. Details: {e_px}")
+        st.error(f"Map rendering error for '{title}'. Details: {e_px}")
         return go.Figure().update_layout(title_text=f"{title} (Map Rendering Error)", height=height)
 
     if facility_gdf is not None and not facility_gdf.empty and 'geometry' in facility_gdf.columns:
         facility_gdf_points = facility_gdf[facility_gdf.geometry.geom_type == 'Point'].copy()
         if not facility_gdf_points.empty:
-            size_data = 8; hover_text_data = "Facility"; 
+            size_data = 8; hover_text_data = "Facility"
             if facility_size_col and facility_size_col in facility_gdf_points.columns and pd.api.types.is_numeric_dtype(facility_gdf_points[facility_size_col]):
                 min_s, max_s_px = 4, 15 
                 s_min_val, s_max_val = facility_gdf_points[facility_size_col].min(), facility_gdf_points[facility_size_col].max()
@@ -209,13 +205,9 @@ def plot_layered_choropleth_map(
             fig.add_trace(go.Scattermapbox(lon=facility_gdf_points.geometry.x, lat=facility_gdf_points.geometry.y, mode='markers', marker=go.scattermapbox.Marker(size=size_data, sizemin=4, color='#1E3A8A', opacity=0.85, allowoverlap=True), text=hover_text_data, hoverinfo='text', name='Health Facilities'))
         else: logger.debug(f"Facility GDF for '{title}' has no Point geometries.")
 
-    fig.update_layout(
-        title_text=title, height=height, margin={"r":5,"t":45,"l":5,"b":5}, 
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.6)')
-    )
+    fig.update_layout(title_text=title, height=height, margin={"r":5,"t":45,"l":5,"b":5}, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.6)'))
     logger.info(f"Successfully configured choropleth map: {title}")
     return fig
-
 
 def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=None,
                               target_line=None, target_label=None, show_ci=False,
@@ -233,10 +225,11 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
 
     fig = go.Figure()
     try:
-        # Ensure theme is applied if pio.templates.default was set
-        line_color = color if color else pio.templates.get(pio.templates.default, pio.templates["plotly"]).layout.colorway[0]
+        current_template_obj = pio.templates[pio.templates.default]
+        line_color = color if color else current_template_obj.layout.colorway[0]
     except Exception: # pragma: no cover
-        line_color = color if color else "#3B82F6" # Fallback color
+        logger.warning("Could not get default colorway, using fallback for line chart.")
+        line_color = color if color else "#3B82F6" 
 
     fig.add_trace(go.Scatter(
         x=data_series.index, y=data_series.values, mode="lines+markers", name=y_axis_title,
@@ -247,13 +240,13 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
 
     if show_ci and lower_bound_series is not None and upper_bound_series is not None and \
        not lower_bound_series.empty and not upper_bound_series.empty:
-        combined_idx = data_series.index.intersection(lower_bound_series.index).intersection(upper_bound_series.index)
-        if not combined_idx.empty:
-            ls = pd.to_numeric(lower_bound_series.reindex(combined_idx), errors='coerce')
-            us = pd.to_numeric(upper_bound_series.reindex(combined_idx), errors='coerce')
+        common_index = data_series.index.intersection(lower_bound_series.index).intersection(upper_bound_series.index)
+        if not common_index.empty:
+            ls = pd.to_numeric(lower_bound_series.reindex(common_index), errors='coerce')
+            us = pd.to_numeric(upper_bound_series.reindex(common_index), errors='coerce')
             valid_ci_idx = ls.notna() & us.notna()
             if valid_ci_idx.any():
-                common_index_ci = combined_idx[valid_ci_idx]
+                common_index_ci = common_index[valid_ci_idx]
                 ls_ci = ls[valid_ci_idx]
                 us_ci = us[valid_ci_idx]
                 fig.add_trace(go.Scatter(
@@ -315,13 +308,13 @@ def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
 
     df_to_plot = df.copy()
     if y_col in df_to_plot.columns: 
-         df_to_plot[y_col] = pd.to_numeric(df_to_plot[y_col], errors='coerce')
+         df_to_plot[y_col] = pd.to_numeric(df_to_plot[y_col], errors='coerce') # Ensure y is numeric for sum/mean by color_col
 
     if sort_values_by and sort_values_by in df_to_plot.columns:
         try:
             if pd.api.types.is_numeric_dtype(df_to_plot[sort_values_by]):
                 df_to_plot.sort_values(by=sort_values_by, ascending=ascending, inplace=True, na_position='last')
-            else:
+            else: # Lexicographical sort for non-numeric
                 df_to_plot.sort_values(by=sort_values_by, ascending=ascending, inplace=True, na_position='last', key=lambda col_sort: col_sort.astype(str))
         except Exception as e_sort: # pragma: no cover
             logger.warning(f"Could not sort bar chart '{title}' by '{sort_values_by}': {e_sort}. Proceeding unsorted.")
@@ -339,7 +332,7 @@ def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
 
 
 def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
-    height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 20
+    height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 20 # Donuts often need slightly more height
     if data_df.empty or labels_col not in data_df.columns or values_col not in data_df.columns:
         logger.warning(f"Empty or invalid data for donut chart: {title}")
         return go.Figure().update_layout(title_text=f"{title} (No data)", height=height, xaxis={'visible': False}, yaxis={'visible': False},
@@ -351,7 +344,7 @@ def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
     fig = go.Figure(data=[go.Pie(
         labels=df_plot_donut[labels_col], values=df_plot_donut[values_col], hole=0.45,
         pull=[0.02] * len(df_plot_donut), textinfo='label+percent', hoverinfo='label+value+percent',
-        marker=dict(line=dict(color='#ffffff', width=1.5)) # Uses theme colors by default
+        marker=dict(line=dict(color='#ffffff', width=1.5)) # Using theme colors by default
     )])
     
     fig.update_layout(title_text=title, height=height, showlegend=True, 
@@ -370,17 +363,15 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     numeric_matrix_df = matrix_df.copy() # Start with a copy
     try:
         # Attempt to convert all columns to numeric, coercing errors.
-        # This will turn non-convertible strings into NaNs.
-        for col in numeric_matrix_df.columns:
+        for col in numeric_matrix_df.columns: # Convert column by column
             numeric_matrix_df[col] = pd.to_numeric(numeric_matrix_df[col], errors='coerce')
         
-        # If all values in the entire dataframe are NaN after coercion, it's problematic.
-        if numeric_matrix_df.isnull().all().all():
+        if numeric_matrix_df.isnull().all().all() and not matrix_df.empty:
              logger.error(f"Matrix for heatmap '{title}' contains only non-numeric or unconvertible data.")
              return go.Figure().update_layout(title_text=f"{title} (All data non-numeric or unconvertible)", height=height,
                                               annotations=[dict(text="Non-numeric data in Heatmap", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
         
-        numeric_matrix_df = numeric_matrix_df.fillna(0) # Fill remaining NaNs with 0 for plotting
+        numeric_matrix_df = numeric_matrix_df.fillna(0) # Fill remaining NaNs (e.g., from original data) with 0 for plotting
 
     except Exception as e: # pragma: no cover
         logger.error(f"Error converting matrix to numeric for heatmap '{title}': {e}", exc_info=True)
@@ -390,7 +381,7 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     zmid_val = None
     if not numeric_matrix_df.empty:
         matrix_for_min_max = numeric_matrix_df.select_dtypes(include=np.number)
-        if not matrix_for_min_max.empty and matrix_for_min_max.notna().any().any():
+        if not matrix_for_min_max.empty and matrix_for_min_max.notna().any().any(): 
             min_val = matrix_for_min_max.min().min() 
             max_val = matrix_for_min_max.max().max() 
             if pd.notna(min_val) and pd.notna(max_val) and min_val < 0 and max_val > 0:
