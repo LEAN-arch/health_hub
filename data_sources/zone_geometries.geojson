@@ -1,54 +1,54 @@
 {
   "type": "FeatureCollection",
+  "name": "tijuana_zones_sample",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
   "features": [
     {
       "type": "Feature",
-      "properties": { "zone_id": "TJ-ZONA-RIO" },
+      "properties": { "zone_id": "ZoneA", "name": "Northwood District"},
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [-117.03, 32.53], [-117.01, 32.53], [-117.01, 32.52], [-117.03, 32.52], [-117.03, 32.53]
-        ]]
+        "coordinates": [[[-117.05, 32.55], [-117.05, 32.60], [-117.00, 32.60], [-117.00, 32.55], [-117.05, 32.55]]]
       }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "TJ-CENTRO" },
+      "properties": { "zone_id": "ZoneB", "name": "Southville Area"},
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [-117.04, 32.535], [-117.02, 32.535], [-117.02, 32.525], [-117.04, 32.525], [-117.04, 32.535]
-        ]]
+        "coordinates": [[[-117.05, 32.50], [-117.05, 32.55], [-117.00, 32.55], [-117.00, 32.50], [-117.05, 32.50]]]
       }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "TJ-OTAY" },
+      "properties": { "zone_id": "ZoneC", "name": "Eastgate Community"},
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [-116.95, 32.54], [-116.93, 32.54], [-116.93, 32.53], [-116.95, 32.53], [-116.95, 32.54]
-        ]]
+        "coordinates": [[[-117.00, 32.55], [-117.00, 32.60], [-116.95, 32.60], [-116.95, 32.55], [-117.00, 32.55]]]
       }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "TJ-PLAYAS" },
+      "properties": { "zone_id": "ZoneD", "name": "Westend Borough"},
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [-117.12, 32.52], [-117.10, 32.52], [-117.10, 32.50], [-117.12, 32.50], [-117.12, 32.52]
-        ]]
+        "coordinates": [[[-117.10, 32.50], [-117.10, 32.55], [-117.05, 32.55], [-117.05, 32.50], [-117.10, 32.50]]]
       }
     },
     {
       "type": "Feature",
-      "properties": { "zone_id": "TJ-LA-MESA" },
+      "properties": { "zone_id": "ZoneE", "name": "Central City Sector"},
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [-116.98, 32.51], [-116.96, 32.51], [-116.96, 32.49], [-116.98, 32.49], [-116.98, 32.51]
-        ]]
+        "coordinates": [[[-116.95, 32.50], [-116.95, 32.55], [-116.90, 32.55], [-116.90, 32.50], [-116.95, 32.50]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "zone_id": "ZoneF", "name": "Riverdale Precinct"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-117.00, 32.45], [-117.00, 32.50], [-116.95, 32.50], [-116.95, 32.45], [-117.00, 32.45]]]
       }
     }
   ]
