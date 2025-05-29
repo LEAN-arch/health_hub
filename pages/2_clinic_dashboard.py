@@ -1,396 +1,413 @@
-# pages/2_clinic_dashboard.py
+# health_hub/pages/2_clinic_dashboard.py
 import streamlit as st
 import pandas as pd
 import os
 import logging
-from config import app_config
+from config import app_config # Centralized configuration
 from utils.core_data_processing import (
-    load_health_records, load_iot_clinic_environment_data,
-    get_clinic_summary, get_clinic_environmental_summary,
-    get_trend_data, get_supply_forecast_data, get_patient_alerts_for_clinic
+    load_health_records, load_iot_clinic_environment_data, # Robust data loaders
+    get_clinic_summary, get_clinic_environmental_summary,    # KPI calculators
+    get_trend_data, get_supply_forecast_data, get_patient_alerts_for_clinic # Analytics functions
 )
 from utils.ui_visualization_helpers import (
-    render_kpi_card, plot_donut_chart, plot_annotated_line_chart, plot_bar_chart
+    render_kpi_card, plot_donut_chart, plot_annotated_line_chart, plot_bar_chart # Plotting helpers
 )
 
 # --- Page Configuration and Styling ---
 st.set_page_config(page_title="Clinic Dashboard - Health Hub", layout="wide", initial_sidebar_state="expanded")
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Logger for this page
 
+@st.cache_resource # Cache CSS loading
 def load_css(): # pragma: no cover
-    css_file = getattr(app_config, 'STYLE_CSS', 'assets/style.css') # Fallback if not in app_config
-    if os.path.exists(css_file):
-        with open(css_file) as f:
+    if os.path.exists(app_config.STYLE_CSS):
+        with open(app_config.STYLE_CSS) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+            logger.info("Clinic Dashboard: CSS loaded successfully.")
     else:
-        logger.warning(f"CSS file not found at {css_file}. Default styles will be used.")
+        logger.warning(f"Clinic Dashboard: CSS file not found at {app_config.STYLE_CSS}. Default Streamlit styles will be used.")
 load_css()
 
 # --- Data Loading ---
-@st.cache_data(ttl=app_config.CACHE_TTL_SECONDS if hasattr(app_config, 'CACHE_TTL_SECONDS') else 3600)
-def get_clinic_page_data_extended():
-    logger.info("Attempting to load extended data for Clinic Dashboard...")
-    health_df_loaded = load_health_records() # This function MUST be robust
-    iot_df_loaded = load_iot_clinic_environment_data() # This function MUST be robust
+@st.cache_data(ttl=app_config.CACHE_TTL_SECONDS) # Cache data loading
+def get_clinic_dashboard_data():
+    logger.info("Clinic Dashboard: Attempting to load health records and IoT data...")
+    health_df = load_health_records()
+    iot_df = load_iot_clinic_environment_data()
 
-    # Log details of loaded data
-    if health_df_loaded is not None and not health_df_loaded.empty:
-        logger.info(f"Health records loaded successfully. Shape: {health_df_loaded.shape}. Columns: {health_df_loaded.columns.tolist()}")
-        if 'date' not in health_df_loaded.columns or not pd.api.types.is_datetime64_any_dtype(health_df_loaded['date']):
-            logger.error("CRITICAL: 'date' column in health_df is missing or not datetime after loading!")
-        if 'item' not in health_df_loaded.columns:
-            logger.warning("WARNING: 'item' column missing in health_df. Supply forecasts will be affected.")
-    elif health_df_loaded is not None and health_df_loaded.empty:
-        logger.warning("Health records loaded, but the DataFrame is empty.")
-    else: # health_df_loaded is None
-        logger.error("CRITICAL: load_health_records() returned None.")
-        # Create a minimal empty DataFrame to prevent downstream 'NoneType' errors if possible
-        health_df_loaded = pd.DataFrame(columns=['date', 'item']) # Add other essential cols
+    if health_df.empty: logger.warning("Clinic Dashboard: Health records are empty or failed to load.")
+    else: logger.info(f"Clinic Dashboard: Successfully loaded {len(health_df)} health records.")
+    if iot_df.empty: logger.warning("Clinic Dashboard: IoT data is empty or failed to load.")
+    else: logger.info(f"Clinic Dashboard: Successfully loaded {len(iot_df)} IoT records.")
+    return health_df, iot_df
 
-    if iot_df_loaded is not None and not iot_df_loaded.empty:
-        logger.info(f"IoT data loaded successfully. Shape: {iot_df_loaded.shape}. Columns: {iot_df_loaded.columns.tolist()}")
-    elif iot_df_loaded is not None and iot_df_loaded.empty:
-        logger.warning("IoT data loaded, but the DataFrame is empty.")
-    else: # iot_df_loaded is None
-        logger.error("CRITICAL: load_iot_clinic_environment_data() returned None.")
-        iot_df_loaded = pd.DataFrame(columns=['timestamp']) # Minimal empty DF
+health_df_clinic_main, iot_df_clinic_main = get_clinic_dashboard_data()
 
-    return health_df_loaded, iot_df_loaded
+# --- Main Page Rendering ---
+# Graceful handling of missing data by providing empty DataFrames with expected minimal schemas
+# This allows downstream functions to run without NoneType errors, though they might show "No data".
+critical_data_missing = False
+if health_df_clinic_main is None or health_df_clinic_main.empty:
+    st.warning("⚠️ **Health records data is currently unavailable.** Some dashboard features related to patient services, testing, and supply chain will be limited or show no data.")
+    logger.warning("Clinic Dashboard cannot display full health-related metrics: health_df_clinic_main is None or empty.")
+    # Provide a minimal schema to prevent errors in functions expecting certain columns
+    health_df_clinic_main = pd.DataFrame(columns=['date', 'item', 'condition', 'patient_id', 'test_type', 'test_result', 'test_turnaround_days', 'stock_on_hand', 'consumption_rate_per_day', 'ai_risk_score'])
+    critical_data_missing = True # Mark that primary data is missing
 
-health_df, iot_df_clinic = get_clinic_page_data_extended()
-
-# --- DEBUG: Inspect loaded health_df immediately ---
-if st.checkbox("Show Raw Health Data Debug (Clinic)", value=False, key="debug_clinic_health_data_raw"):
-    st.subheader("Raw `health_df` Inspection (Post-Load)")
-    if health_df is not None:
-        st.write(f"`health_df` is empty: {health_df.empty}")
-        st.write(f"`health_df` columns: `{health_df.columns.tolist()}`")
-        if not health_df.empty:
-            st.write("`health_df.head()`:")
-            st.dataframe(health_df.head())
-            if 'date' in health_df.columns:
-                st.write(f"`health_df['date']` dtype: {health_df['date'].dtype}, NaNs: {health_df['date'].isna().sum()}")
-            else:
-                st.error("`health_df` is missing 'date' column!")
-            if 'item' in health_df.columns:
-                st.write(f"`health_df['item']` dtype: {health_df['item'].dtype}, NaNs: {health_df['item'].isna().sum()}")
-            else:
-                st.error("`health_df` is missing 'item' column!")
-    else:
-        st.error("`health_df` is None. Data loading failed critically.")
-# --- END DEBUG ---
-
-
-# --- Main Page ---
-# Check if essential data is truly unusable
-critical_health_data_missing = health_df is None or \
-                               health_df.empty or \
-                               'date' not in health_df.columns or \
-                               not pd.api.types.is_datetime64_any_dtype(health_df['date'])
-
-critical_iot_data_missing = iot_df_clinic is None or iot_df_clinic.empty
-
-if critical_health_data_missing and critical_iot_data_missing:
-    st.error("🚨 CRITICAL Error: Could not load usable health records (missing/empty/'date' column invalid) AND IoT data. Clinic Dashboard cannot be displayed.")
-    logger.critical("Dashboard stop: health_df unusable AND iot_df_clinic unusable.")
-    st.stop()
-elif critical_health_data_missing:
-    st.warning("⚠️ WARNING: Health records are missing, empty, or the 'date' column is invalid. Some dashboard features will be unavailable or show no data.")
-    logger.warning("Health data is unusable for dashboard. Proceeding with IoT data if available.")
-    # Create a minimal empty health_df to prevent errors in functions that expect a DataFrame
-    health_df = pd.DataFrame(columns=['date', 'item', 'condition', 'patient_id', 'test_type', 'test_result', 'test_turnaround_days', 'test_date'])
+if iot_df_clinic_main is None or iot_df_clinic_main.empty:
+    st.info("ℹ️ IoT environmental data is unavailable. Clinic environment monitoring section will not be displayed.")
+    logger.info("Clinic Dashboard: iot_df_clinic_main is None or empty. Environmental metrics will be skipped.")
+    iot_df_clinic_main = pd.DataFrame(columns=['timestamp', 'avg_co2_ppm', 'avg_pm25', 'waiting_room_occupancy', 'sanitizer_dispenses_per_hour', 'avg_noise_db', 'clinic_id', 'room_name', 'zone_id'])
 
 
 st.title("🏥 Clinic Operations & Environmental Dashboard")
-st.markdown("**Monitoring Efficiency, Quality, Resources, and Facility Environment**")
-st.markdown("---")
+st.markdown("**Monitoring Service Efficiency, Quality of Care, Resource Management, and Facility Environment**")
+st.markdown("---") # Visual separator
 
-# --- Sidebar Filters & Date Range Setup ---
-st.sidebar.header("Clinic Filters")
-min_date_cl_page = None
-max_date_cl_page = None
-default_days_trend = getattr(app_config, 'DEFAULT_DATE_RANGE_DAYS_TREND', 30)
-default_start_cl = pd.Timestamp('today').date() - pd.Timedelta(days=default_days_trend - 1)
-default_end_cl = pd.Timestamp('today').date()
+# --- Sidebar Filters ---
+st.sidebar.header("🗓️ Clinic Filters") # Emoji for visual appeal
 
-# Date filter setup requires a non-empty health_df with a valid 'date' column
-if health_df is not None and not health_df.empty and \
-   'date' in health_df.columns and pd.api.types.is_datetime64_any_dtype(health_df['date']) and \
-   health_df['date'].notna().any():
-    
-    min_date_dt_series_cl = health_df['date'].min()
-    max_date_dt_series_cl = health_df['date'].max()
+# Determine combined date range from available data for the filter
+all_clinic_dates = []
+if 'date' in health_df_clinic_main.columns and health_df_clinic_main['date'].notna().any():
+    all_clinic_dates.extend(health_df_clinic_main['date'])
+if 'timestamp' in iot_df_clinic_main.columns and iot_df_clinic_main['timestamp'].notna().any():
+    all_clinic_dates.extend(iot_df_clinic_main['timestamp'])
 
-    if pd.notna(min_date_dt_series_cl) and pd.notna(max_date_dt_series_cl):
-        min_date_cl_page = min_date_dt_series_cl.date()
-        max_date_cl_page = max_date_dt_series_cl.date()
-        
-        if min_date_cl_page > max_date_cl_page: min_date_cl_page = max_date_cl_page
-        
-        default_end_cl = max_date_cl_page
-        default_start_cl_dt = pd.to_datetime(max_date_cl_page) - pd.Timedelta(days=default_days_trend - 1)
-        default_start_cl = default_start_cl_dt.date()
-        
-        if default_start_cl < min_date_cl_page: default_start_cl = min_date_cl_page
-        if default_start_cl > default_end_cl: default_start_cl = default_end_cl
-    else:
-        logger.warning("Min/Max dates in health_df['date'] are NaT. Using system default date range for clinic filter.")
+if not all_clinic_dates: # Fallback if no date data at all
+    min_date_data_clinic = pd.Timestamp('today').date() - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND * 3) # Wider fallback
+    max_date_data_clinic = pd.Timestamp('today').date()
 else:
-    logger.warning("Health_df is empty, or 'date' column is missing/invalid/all_NaT. Using system default date range for clinic filter.")
+    min_date_data_clinic = pd.Series(all_clinic_dates).min().date()
+    max_date_data_clinic = pd.Series(all_clinic_dates).max().date()
 
-if min_date_cl_page is None: min_date_cl_page = pd.Timestamp('today').date() - pd.Timedelta(days=365)
-if max_date_cl_page is None: max_date_cl_page = pd.Timestamp('today').date()
-if default_start_cl < min_date_cl_page: default_start_cl = min_date_cl_page
-if default_end_cl > max_date_cl_page: default_end_cl = max_date_cl_page
-if default_start_cl > default_end_cl: default_start_cl = default_end_cl
+default_start_date_clinic = max_date_data_clinic - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND - 1)
+if default_start_date_clinic < min_date_data_clinic : default_start_date_clinic = min_date_data_clinic
 
-start_date, end_date = st.sidebar.date_input(
-    "Select Date Range for Analysis", 
-    value=[default_start_cl, default_end_cl],
-    min_value=min_date_cl_page,
-    max_value=max_date_cl_page, 
-    key="clinic_date_range_final_v4",
-    help="Applies to most charts and KPIs unless specified."
+
+selected_start_date_cl, selected_end_date_cl = st.sidebar.date_input(
+    "Select Date Range for Analysis:",
+    value=[default_start_date_clinic, max_date_data_clinic],
+    min_value=min_date_data_clinic,
+    max_value=max_date_data_clinic,
+    key="clinic_dashboard_date_range_selector", # Unique key
+    help="This date range applies to most charts and Key Performance Indicators (KPIs) unless specified otherwise."
 )
 
 # --- Filter dataframes based on selected date range ---
-# Initialize filtered_df with columns from health_df if available, otherwise a minimal set
-health_df_cols = health_df.columns if health_df is not None and not health_df.empty else ['date', 'item', 'condition']
-filtered_df = pd.DataFrame(columns=health_df_cols)
+# Ensure date columns exist and are of datetime.date type for comparison
+filtered_health_df_clinic = pd.DataFrame(columns=health_df_clinic_main.columns) # Init empty with schema
+if selected_start_date_cl and selected_end_date_cl and 'date' in health_df_clinic_main.columns:
+    health_df_clinic_main['date_obj'] = pd.to_datetime(health_df_clinic_main['date']).dt.date
+    health_mask = (health_df_clinic_main['date_obj'] >= selected_start_date_cl) & (health_df_clinic_main['date_obj'] <= selected_end_date_cl)
+    filtered_health_df_clinic = health_df_clinic_main[health_mask].copy()
 
-if health_df is not None and not health_df.empty and \
-   'date' in health_df.columns and pd.api.types.is_datetime64_any_dtype(health_df['date']):
-    if start_date and end_date and start_date <= end_date:
-        date_mask = (health_df['date'].dt.date >= start_date) & (health_df['date'].dt.date <= end_date)
-        filtered_df = health_df[date_mask].copy()
-    else: # Date range from widget is invalid or not yet set by user fully
-        logger.info("Date range from widget invalid or not fully set for health_df filter. Using all health_df for now.")
-        filtered_df = health_df.copy() # Or consider not filtering yet until range is valid
-else:
-    logger.warning("Cannot filter health_df by date as it's empty or 'date' column is problematic.")
-    # filtered_df remains empty with predefined columns
+filtered_iot_df_clinic = pd.DataFrame(columns=iot_df_clinic_main.columns) # Init empty with schema
+if selected_start_date_cl and selected_end_date_cl and 'timestamp' in iot_df_clinic_main.columns:
+    iot_df_clinic_main['date_obj'] = pd.to_datetime(iot_df_clinic_main['timestamp']).dt.date
+    iot_mask = (iot_df_clinic_main['date_obj'] >= selected_start_date_cl) & (iot_df_clinic_main['date_obj'] <= selected_end_date_cl)
+    filtered_iot_df_clinic = iot_df_clinic_main[iot_mask].copy()
 
-iot_df_cols = iot_df_clinic.columns if iot_df_clinic is not None and not iot_df_clinic.empty else ['timestamp']
-filtered_iot_df_clinic = pd.DataFrame(columns=iot_df_cols)
+# --- Display KPIs ---
+date_range_display_str = f"({selected_start_date_cl.strftime('%d %b %Y')} - {selected_end_date_cl.strftime('%d %b %Y')})" if selected_start_date_cl and selected_end_date_cl else "(Date range not fully set)"
 
-if iot_df_clinic is not None and not iot_df_clinic.empty and \
-   'timestamp' in iot_df_clinic.columns and pd.api.types.is_datetime64_any_dtype(iot_df_clinic['timestamp']):
-    if start_date and end_date and start_date <= end_date:
-        iot_date_mask = (iot_df_clinic['timestamp'].dt.date >= start_date) & (iot_df_clinic['timestamp'].dt.date <= end_date)
-        filtered_iot_df_clinic = iot_df_clinic[iot_date_mask].copy()
-    else:
-        logger.info("Date range from widget invalid or not fully set for iot_df_clinic filter. Using all iot_df_clinic for now.")
-        filtered_iot_df_clinic = iot_df_clinic.copy()
-else:
-    logger.warning("Cannot filter iot_df_clinic by date as it's empty or 'timestamp' column is problematic.")
+st.subheader(f"Key Disease Service Metrics {date_range_display_str}")
+clinic_service_kpis = get_clinic_summary(filtered_health_df_clinic) # Handles empty df
 
-# --- KPIs ---
-date_range_str = f"({start_date.strftime('%d %b %Y')} - {end_date.strftime('%d %b %Y')})" if start_date and end_date and start_date <= end_date else "(Full Period or Awaiting Date Filter)"
-st.subheader(f"Key Disease Service Metrics {date_range_str}")
+kpi_cols_clinic_services = st.columns(5) # Arrange 5 service KPIs in a row
+with kpi_cols_clinic_services[0]:
+    tb_pos_rate = clinic_service_kpis.get('tb_sputum_positivity', 0.0)
+    render_kpi_card("TB Positivity Rate", f"{tb_pos_rate:.1f}%", "🔬",
+                    status="High" if tb_pos_rate > 15 else ("Moderate" if tb_pos_rate > 5 else "Low"),
+                    help_text="Percentage of sputum/GeneXpert tests positive for TB in the selected period.")
+with kpi_cols_clinic_services[1]:
+    mal_pos_rate = clinic_service_kpis.get('malaria_positivity', 0.0)
+    render_kpi_card("Malaria Positivity", f"{mal_pos_rate:.1f}%", "🦟",
+                    status="High" if mal_pos_rate > app_config.TARGET_MALARIA_POSITIVITY_RATE else "Low",
+                    help_text=f"Malaria test (RDT/Microscopy) positivity rate. Target: <{app_config.TARGET_MALARIA_POSITIVITY_RATE}%.")
+with kpi_cols_clinic_services[2]:
+    avg_tat = clinic_service_kpis.get('avg_test_turnaround_all_tests', 0.0)
+    render_kpi_card("Avg. Test TAT", f"{avg_tat:.1f} days", "⏱️",
+                    status="High" if avg_tat > app_config.TARGET_TEST_TURNAROUND_DAYS + 1 else ("Moderate" if avg_tat > app_config.TARGET_TEST_TURNAROUND_DAYS else "Low"),
+                    help_text=f"Average turnaround time for all conclusive tests. Target: ≤{app_config.TARGET_TEST_TURNAROUND_DAYS} days.")
+with kpi_cols_clinic_services[3]:
+    hiv_tests_count = clinic_service_kpis.get('hiv_tests_conclusive_period', 0)
+    render_kpi_card("HIV Tests Conducted", str(hiv_tests_count), "<img src='https://www.svgrepo.com/show/371614/hiv-ribbon.svg' width='30' alt='HIV'>", icon_is_html=True,
+                    status="Low" if hiv_tests_count < 20 else "Moderate", # Example: low if less than 20 tests in period
+                    help_text="Number of unique patients with conclusive HIV test results in the period.")
+with kpi_cols_clinic_services[4]:
+    drug_stockouts_count = clinic_service_kpis.get('key_drug_stockouts', 0)
+    render_kpi_card("Key Drug Stockouts", str(drug_stockouts_count), "💊",
+                    status="High" if drug_stockouts_count > 0 else "Low",
+                    help_text=f"Number of key disease drugs with < {app_config.CRITICAL_SUPPLY_DAYS} days of supply remaining.")
 
-# Check if filtered_df is usable for KPIs
-if filtered_df is not None and not filtered_df.empty:
-    clinic_kpis = get_clinic_summary(filtered_df) # Assumes get_clinic_summary handles potentially missing internal columns
-    kpi_cols_disease_cl = st.columns(5)
-    # ... (rest of your KPI rendering - ensure .get() is used for robustness) ...
-    with kpi_cols_disease_cl[0]: render_kpi_card("TB Sputum Positivity", f"{clinic_kpis.get('tb_sputum_positivity',0.0):.1f}%", "🔬", status="High" if clinic_kpis.get('tb_sputum_positivity',0) > 10 else "Moderate", help_text="Percentage of sputum tests positive for TB among conclusive tests.")
-    with kpi_cols_disease_cl[1]: render_kpi_card("Malaria RDT Positivity", f"{clinic_kpis.get('malaria_rdt_positivity',0.0):.1f}%", "🦟", status="High" if clinic_kpis.get('malaria_rdt_positivity',0) > app_config.TARGET_MALARIA_POSITIVITY_RATE else "Moderate", help_text=f"Target: <{app_config.TARGET_MALARIA_POSITIVITY_RATE}%. RDT positivity for Malaria.")
-    with kpi_cols_disease_cl[2]: render_kpi_card("STI Tests Pending", str(clinic_kpis.get('sti_tests_pending',0)), "🧪", status="Moderate" if clinic_kpis.get('sti_tests_pending',0) > 5 else "Low", help_text="Number of key STI tests currently pending results.")
-    with kpi_cols_disease_cl[3]: 
-        hiv_icon = "<img src='https://www.svgrepo.com/show/371614/hiv-ribbon.svg' width='28' alt='HIV' style='vertical-align: middle;'>"
-        render_kpi_card("HIV Tests This Period", str(clinic_kpis.get('hiv_tests_done_period',0)), hiv_icon, icon_is_html=True, help_text="Number of conclusive HIV tests conducted in the period.")
-    with kpi_cols_disease_cl[4]: render_kpi_card("Key Drug Stockouts", str(clinic_kpis.get('critical_disease_supply_items',0)), "💊", status="High" if clinic_kpis.get('critical_disease_supply_items',0) > 0 else "Low", help_text=f"Key disease drugs with <{app_config.CRITICAL_SUPPLY_DAYS} days stock.")
+# Clinic Environmental KPIs - only if IoT data is available for the period
+if not filtered_iot_df_clinic.empty:
+    st.subheader(f"Clinic Environment Snapshot {date_range_display_str}")
+    clinic_env_kpis = get_clinic_environmental_summary(filtered_iot_df_clinic) # Handles empty df
 
-else:
-    st.info("No health record data available for the selected period (or base data unusable) to display disease service KPIs.")
-
-st.subheader(f"Clinic Environment Snapshot {date_range_str}")
-if filtered_iot_df_clinic is not None and not filtered_iot_df_clinic.empty:
-    env_summary_clinic = get_clinic_environmental_summary(filtered_iot_df_clinic)
-    kpi_cols_env_cl = st.columns(4)
-    # ... (rest of your IoT KPI rendering) ...
-    with kpi_cols_env_cl[0]: render_kpi_card("Avg. CO2", f"{env_summary_clinic.get('avg_co2',0):.0f} ppm", "💨", status="High" if env_summary_clinic.get('co2_alert_rooms',0) > 0 else "Low", help_text=f"Rooms w/ CO2 > {app_config.CO2_LEVEL_ALERT_PPM}ppm: {env_summary_clinic.get('co2_alert_rooms',0)}")
-    with kpi_cols_env_cl[1]: render_kpi_card("Avg. PM2.5", f"{env_summary_clinic.get('avg_pm25',0):.1f} µg/m³", "🌫️", status="High" if env_summary_clinic.get('pm25_alert_rooms',0) > 0 else "Low", help_text=f"Rooms w/ PM2.5 > {app_config.PM25_ALERT_UGM3}µg/m³: {env_summary_clinic.get('pm25_alert_rooms',0)}")
-    with kpi_cols_env_cl[2]: render_kpi_card("Avg. Occupancy", f"{env_summary_clinic.get('avg_occupancy',0):.1f}", "👨‍👩‍👧‍👦", status="High" if env_summary_clinic.get('high_occupancy_alert') else "Low", help_text=f"Avg. waiting room occupancy. Target < {app_config.TARGET_WAITING_ROOM_OCCUPANCY}.")
-    with kpi_cols_env_cl[3]: render_kpi_card("Sanitizer Use", f"{env_summary_clinic.get('avg_sanitizer_use_hr',0):.1f}/hr", "🧴", status="Low" if env_summary_clinic.get('avg_sanitizer_use_hr',0) < app_config.TARGET_SANITIZER_DISPENSES_PER_HOUR_PER_DISPENSER else "High", help_text="Avg. dispenses/hr/unit.")
-
-else:
-    st.info("No IoT environmental data available for the selected period (or base data unusable) to display environmental KPIs.")
+    kpi_cols_clinic_environment = st.columns(4)
+    with kpi_cols_clinic_environment[0]:
+        avg_co2_val = clinic_env_kpis.get('avg_co2_overall', 0.0)
+        co2_alert_rooms_val = clinic_env_kpis.get('rooms_co2_alert_latest', 0)
+        render_kpi_card("Avg. CO2 (All Rooms)", f"{avg_co2_val:.0f} ppm", "💨", # Ventilation icon
+                        status="High" if co2_alert_rooms_val > 0 else "Low",
+                        help_text=f"Period average CO2. {co2_alert_rooms_val} room(s) currently > {app_config.CO2_LEVEL_ALERT_PPM}ppm.")
+    with kpi_cols_clinic_environment[1]:
+        avg_pm25_val = clinic_env_kpis.get('avg_pm25_overall', 0.0)
+        pm25_alert_rooms_val = clinic_env_kpis.get('rooms_pm25_alert_latest', 0)
+        render_kpi_card("Avg. PM2.5 (All Rooms)", f"{avg_pm25_val:.1f} µg/m³", "🌫️", # Air quality icon
+                        status="High" if pm25_alert_rooms_val > 0 else "Low",
+                        help_text=f"Period average PM2.5. {pm25_alert_rooms_val} room(s) currently > {app_config.PM25_ALERT_UGM3}µg/m³.")
+    with kpi_cols_clinic_environment[2]:
+        avg_occupancy_val = clinic_env_kpis.get('avg_occupancy_overall', 0.0)
+        occupancy_alert_val = clinic_env_kpis.get('high_occupancy_alert_latest', False)
+        render_kpi_card("Avg. Occupancy", f"{avg_occupancy_val:.1f} persons", "👨‍👩‍👧‍👦", # People icon
+                        status="High" if occupancy_alert_val else "Low",
+                        help_text=f"Average waiting room occupancy. Target < {app_config.TARGET_WAITING_ROOM_OCCUPANCY}. Alert if any room's latest reading is high.")
+    with kpi_cols_clinic_environment[3]:
+        avg_noise_alert_rooms_val = clinic_env_kpis.get('rooms_noise_alert_latest', 0)
+        render_kpi_card("Noise Alerts", str(avg_noise_alert_rooms_val), "🔊",
+                        status="High" if avg_noise_alert_rooms_val > 0 else "Low",
+                        help_text=f"Rooms with latest noise levels > {app_config.NOISE_LEVEL_ALERT_DB}dB.")
 st.markdown("---")
 
 # --- Tabs for Detailed Views ---
-tab_tests_cl, tab_supplies_cl, tab_patients_cl, tab_environment_cl = st.tabs([
-    "🔬 Disease Testing", "💊 Supply Chain", "🧍 Patient Focus", "🌿 Clinic Environment"
-])
+tab_titles_clinic = [
+    "🔬 Disease Testing Insights", "💊 Supply Chain Management",
+    "🧍 Patient Focus & Alerts", "🌿 Clinic Environment Details"
+]
+tab_tests, tab_supplies, tab_patients, tab_environment = st.tabs(tab_titles_clinic)
 
-with tab_tests_cl:
-    st.subheader("Disease-Specific Test Results & Performance")
-    required_cols_tests = ['test_type', 'test_result', 'patient_id']
-    if filtered_df is not None and not filtered_df.empty and all(col in filtered_df.columns for col in required_cols_tests):
-        # ... (rest of your tab_tests_cl logic - it was mostly fine, ensure .get() for robustness) ...
-            col_test1_cl, col_test2_cl = st.columns([0.4, 0.6]) 
-            with col_test1_cl:
-                tb_tests_df = filtered_df[filtered_df['test_type'].astype(str).str.contains("Sputum|GeneXpert", case=False, na=False)].copy()
-                if not tb_tests_df.empty:
-                    tb_results_summary = tb_tests_df.dropna(subset=['test_result']).groupby('test_result')['patient_id'].nunique().reset_index()
-                    tb_results_summary.columns = ['Test Result', 'Count']
-                    tb_results_summary = tb_results_summary[~tb_results_summary['Test Result'].astype(str).isin(['Unknown', 'N/A', 'nan', 'Pending'])]
-                    if not tb_results_summary.empty: 
-                        st.plotly_chart(plot_donut_chart(tb_results_summary, 'Test Result', 'Count', "TB Test Result Distribution"), use_container_width=True)
-                    else: st.caption("No conclusive TB test result data for pie chart.")
-                else: st.caption("No TB tests found in selected period.")
-            
-            with col_test2_cl:
-                if 'test_turnaround_days' in filtered_df.columns and 'test_date' in filtered_df.columns and pd.api.types.is_datetime64_any_dtype(filtered_df['test_date']):
-                    turnaround_trend_df_cl = filtered_df.dropna(subset=['test_turnaround_days', 'test_date']).copy()
-                    # test_date should already be datetime if it passed the main health_df check
-                    if not turnaround_trend_df_cl.empty:
-                        turnaround_trend_cl = get_trend_data(turnaround_trend_df_cl,'test_turnaround_days', period='D', date_col='test_date')
-                        if not turnaround_trend_cl.empty: 
-                            st.plotly_chart(plot_annotated_line_chart(
-                                turnaround_trend_cl, "Daily Avg. Test Turnaround Time", 
-                                y_axis_title="Days", target_line=app_config.TARGET_TEST_TURNAROUND_DAYS,
-                                height=app_config.DEFAULT_PLOT_HEIGHT
-                            ), use_container_width=True)
-                        else: st.caption("No aggregated turnaround time data for trend.")
-                    else: st.caption("No valid raw turnaround time data for trend (after date processing).")
-                else: 
-                    st.caption("Required columns ('test_turnaround_days', 'test_date' as datetime) missing for turnaround trend.")
-    else: 
-        st.info(f"Health records are empty, or missing one or more required columns for Disease Testing tab: {', '.join(required_cols_tests)}.")
+with tab_tests:
+    st.subheader("Disease-Specific Testing Performance and Trends")
+    if not filtered_health_df_clinic.empty and all(c in filtered_health_df_clinic.columns for c in ['test_type', 'test_result', 'patient_id', 'date']):
+        col_test_dist, col_test_tat_trend = st.columns([0.45, 0.55]) # Adjust column widths
+        with col_test_dist:
+            st.markdown("###### **TB Test Result Distribution**")
+            tb_tests_df_viz = filtered_health_df_clinic[filtered_health_df_clinic['test_type'].str.contains("Sputum|GeneXpert", case=False, na=False)].copy()
+            if not tb_tests_df_viz.empty:
+                tb_results_dist_summary = tb_tests_df_viz.dropna(subset=['test_result']).groupby('test_result')['patient_id'].nunique().reset_index()
+                tb_results_dist_summary.columns = ['Test Result', 'Unique Patients']
+                # Filter out inconclusive/pending for the distribution donut chart
+                tb_results_dist_summary_conclusive = tb_results_dist_summary[~tb_results_dist_summary['Test Result'].isin(['Unknown', 'N/A', 'nan', 'Pending'])]
+                if not tb_results_dist_summary_conclusive.empty:
+                    st.plotly_chart(plot_donut_chart(tb_results_dist_summary_conclusive, 'Test Result', 'Unique Patients',
+                                                    title="TB Test Results (Conclusive)", height=app_config.COMPACT_PLOT_HEIGHT + 20,
+                                                    color_discrete_map={"Positive": app_config.RISK_STATUS_COLORS["High"], "Negative": app_config.RISK_STATUS_COLORS["Low"]}),
+                                   use_container_width=True)
+                else: st.caption("No conclusive TB test result data for donut chart in the selected period.")
+            else: st.caption("No TB tests found in the selected period to display distribution.")
 
-
-with tab_supplies_cl:
-    st.subheader("Supply Levels & Forecast (Key Disease Drugs)")
-    # Supply forecast uses the original, unfiltered health_df for a complete historical view
-    # THE CRITICAL CHECK:
-    if health_df is not None and not health_df.empty and \
-       'item' in health_df.columns and \
-       'date' in health_df.columns and pd.api.types.is_datetime64_any_dtype(health_df['date']):
-        
-        supply_forecast_df_all_items = get_supply_forecast_data(health_df) # Assumes health_df is now good
-        
-        if supply_forecast_df_all_items is not None and not supply_forecast_df_all_items.empty:
-            key_drug_substrings = getattr(app_config, 'KEY_DRUG_SUBSTRINGS_SUPPLY', ['TB-Regimen', 'ACT', 'ARV-Regimen', 'Penicillin', 'Ceftriaxone', 'Iron-Folate', 'Amoxicillin'])
-            available_key_items_cl = sorted([
-                item for item in supply_forecast_df_all_items['item'].unique() 
-                if pd.notna(item) and any(sub.lower() in str(item).lower() for sub in key_drug_substrings)
-            ])
-            if not available_key_items_cl: 
-                st.info("No forecast data available for key disease drugs based on current stock definitions or item names.")
-            else:
-                selected_item_clinic_tab = st.selectbox("Select Key Drug for Forecast:", available_key_items_cl, key="supply_item_select_clinic_final_v3") # Incremented key
-                if selected_item_clinic_tab: 
-                    item_forecast_df_cl = supply_forecast_df_all_items[supply_forecast_df_all_items['item'] == selected_item_clinic_tab].copy()
-                    if not item_forecast_df_cl.empty:
-                        if 'date' in item_forecast_df_cl.columns: # Ensure 'date' is suitable for index
-                            item_forecast_df_cl.sort_values('date', inplace=True)
-                            item_forecast_df_cl.set_index('date', inplace=True)
-                        
+        with col_test_tat_trend:
+            st.markdown("###### **Daily Average Test Turnaround Time (TAT)**")
+            if 'test_turnaround_days' in filtered_health_df_clinic.columns:
+                # Trend of TAT based on the date the result was recorded ('date') for conclusive tests
+                tat_trend_data_src = filtered_health_df_clinic[
+                    filtered_health_df_clinic['test_turnaround_days'].notna() &
+                    (~filtered_health_df_clinic['test_result'].isin(['Pending', 'N/A', 'Unknown']))
+                ].copy()
+                if not tat_trend_data_src.empty:
+                    daily_avg_tat_trend = get_trend_data(tat_trend_data_src,'test_turnaround_days', period='D', date_col='date', agg_func='mean')
+                    if not daily_avg_tat_trend.empty:
                         st.plotly_chart(plot_annotated_line_chart(
-                            item_forecast_df_cl['forecast_days'],f"Forecast: {selected_item_clinic_tab} (Days of Supply Remaining)",
-                            y_axis_title="Days of Supply",target_line=app_config.CRITICAL_SUPPLY_DAYS, 
-                            target_label=f"Critical ({app_config.CRITICAL_SUPPLY_DAYS} Days)",show_ci=True, 
-                            lower_bound_series=item_forecast_df_cl.get('lower_ci'), 
-                            upper_bound_series=item_forecast_df_cl.get('upper_ci'),
-                            height=getattr(app_config, 'DEFAULT_PLOT_HEIGHT', 380) + 50
+                            daily_avg_tat_trend, "Daily Avg. Test Turnaround Time", y_axis_title="Days",
+                            target_line=app_config.TARGET_TEST_TURNAROUND_DAYS, target_label="Target TAT",
+                            height=app_config.COMPACT_PLOT_HEIGHT + 20, show_anomalies=True, date_format="%d %b"
                         ), use_container_width=True)
-                    else: st.info(f"No forecast data found for {selected_item_clinic_tab}.")
-        else: 
-            st.warning("Output of `get_supply_forecast_data` is empty or None. Cannot display supply forecasts.")
-    else: 
-        # This is where your original error message comes from
-        st.error("CRITICAL FOR SUPPLY TAB: Cannot generate supply forecasts. The base health data (`health_df`) is empty, or missing a valid 'item' column, or missing a valid 'date' (datetime) column.")
-        logger.error("Supply tab cannot proceed: health_df missing 'item' or valid 'date' column.")
+                    else: st.caption("No aggregated TAT data available for trend in the selected period.")
+                else: st.caption("No conclusive tests with TAT data found in the selected period for trend.")
+            else: st.caption("Test Turnaround Time data ('test_turnaround_days') missing for trend analysis.")
+    else:
+        st.info("Health records are empty or missing key columns for the Disease Testing Insights tab.")
 
 
-with tab_patients_cl:
-    st.subheader("Patient Load by Key Conditions")
-    required_cols_patients = ['condition', 'date', 'patient_id']
-    if filtered_df is not None and not filtered_df.empty and \
-       all(col in filtered_df.columns for col in required_cols_patients) and \
-       pd.api.types.is_datetime64_any_dtype(filtered_df['date']): # Ensure date is still datetime
-        
-        key_conditions_list = getattr(app_config, 'KEY_CONDITIONS_FOR_TRENDS', ['TB', 'Malaria', 'HIV-Positive'])
-        key_conditions_clinic_df = filtered_df[filtered_df['condition'].astype(str).isin(key_conditions_list)].copy()
-        
-        if not key_conditions_clinic_df.empty:
-            patient_condition_summary = key_conditions_clinic_df.groupby([pd.Grouper(key='date', freq='D'), 'condition'])['patient_id'].nunique().reset_index()
-            patient_condition_summary.rename(columns={'patient_id': 'patient_count'}, inplace=True)
-            if not patient_condition_summary.empty:
-                patient_pivot = patient_condition_summary.pivot_table(index='date', columns='condition', values='patient_count', fill_value=0).reset_index()
-                patient_melt = patient_pivot.melt(id_vars='date', var_name='condition', value_name='patient_count')
+with tab_supplies:
+    st.subheader("Medical Supply Levels & Consumption Forecast")
+    # Supply forecast uses the *original, unfiltered* health_df_clinic_main for historical consumption rates
+    if health_df_clinic_main is not None and not health_df_clinic_main.empty and \
+       all(c in health_df_clinic_main.columns for c in ['item', 'date', 'stock_on_hand', 'consumption_rate_per_day']):
+
+        # Generate forecast data (function now includes current stock & rate in output)
+        supply_forecast_df = get_supply_forecast_data(health_df_clinic_main, forecast_days_out=28) # Forecast for 4 weeks
+
+        if supply_forecast_df is not None and not supply_forecast_df.empty:
+            # Filter for key drug items for the dropdown
+            key_drug_items_for_select = sorted([
+                item for item in supply_forecast_df['item'].unique()
+                if any(sub.lower() in str(item).lower() for sub in app_config.KEY_DRUG_SUBSTRINGS_SUPPLY)
+            ])
+
+            if not key_drug_items_for_select:
+                st.info("No forecast data available for the defined key disease drugs.")
+            else:
+                selected_drug_for_forecast = st.selectbox(
+                    "Select Key Drug for Forecast Details:", key_drug_items_for_select,
+                    key="clinic_supply_item_forecast_selector",
+                    help="View the forecasted days of supply remaining for the selected drug."
+                )
+                if selected_drug_for_forecast:
+                    item_specific_forecast_df = supply_forecast_df[supply_forecast_df['item'] == selected_drug_for_forecast].copy()
+                    if not item_specific_forecast_df.empty:
+                        item_specific_forecast_df.sort_values('date', inplace=True) # Ensure chronological order for plotting
+                        
+                        # Get current info for display from the first record (which is current day)
+                        current_day_info = item_specific_forecast_df.iloc[0]
+                        forecast_plot_title = (
+                            f"Forecast: {selected_drug_for_forecast}<br>"
+                            f"<sup_>Current Stock: {current_day_info.get('current_stock',0):.0f} units | "
+                            f"Est. Daily Use: {current_day_info.get('consumption_rate',0):.1f} units/day | "
+                            f"Est. Stockout: {pd.to_datetime(current_day_info.get('estimated_stockout_date')).strftime('%d %b %Y') if pd.notna(current_day_info.get('estimated_stockout_date')) else 'N/A'}</sup>"
+                        )
+                        
+                        # Plot 'forecast_days' (days of supply remaining)
+                        st.plotly_chart(plot_annotated_line_chart(
+                            item_specific_forecast_df.set_index('date')['forecast_days'],
+                            title=forecast_plot_title,
+                            y_axis_title="Days of Supply Remaining",
+                            target_line=app_config.CRITICAL_SUPPLY_DAYS,
+                            target_label=f"Critical Level ({app_config.CRITICAL_SUPPLY_DAYS} Days)",
+                            show_ci=True, # Enable confidence interval display
+                            lower_bound_series=item_specific_forecast_df.set_index('date')['lower_ci'],
+                            upper_bound_series=item_specific_forecast_df.set_index('date')['upper_ci'],
+                            height=app_config.DEFAULT_PLOT_HEIGHT + 60, # Extra height for longer title
+                            show_anomalies=False # Anomalies typically not shown on forecast plots
+                        ), use_container_width=True)
+                    else: st.info(f"No forecast data found for the selected drug: {selected_drug_for_forecast}.")
+        else:
+            st.warning("Supply forecast data could not be generated. This may be due to missing consumption rates or stock levels.")
+    else:
+        st.error("CRITICAL FOR SUPPLY TAB: Cannot generate supply forecasts. Base health data is unusable or missing essential columns (item, date, stock_on_hand, consumption_rate_per_day).")
+
+
+with tab_patients:
+    st.subheader("Patient Load & High-Risk Case Identification")
+    # Patient load by key conditions
+    if not filtered_health_df_clinic.empty and all(c in filtered_health_df_clinic.columns for c in ['condition', 'date', 'patient_id']):
+        conditions_for_load_chart = app_config.KEY_CONDITIONS_FOR_TRENDS
+        patient_load_df_src = filtered_health_df_clinic[
+            filtered_health_df_clinic['condition'].isin(conditions_for_load_chart) &
+            (filtered_health_df_clinic['patient_id'] != 'Unknown') # Exclude unknown patient IDs
+        ].copy()
+
+        if not patient_load_df_src.empty:
+            # Calculate daily unique patient count for each key condition
+            daily_patient_load_summary = patient_load_df_src.groupby(
+                [pd.Grouper(key='date', freq='D'), 'condition']
+            )['patient_id'].nunique().reset_index()
+            daily_patient_load_summary.rename(columns={'patient_id': 'unique_patients'}, inplace=True)
+
+            if not daily_patient_load_summary.empty:
                 st.plotly_chart(plot_bar_chart(
-                    patient_melt, x_col='date', y_col='patient_count', 
-                    title="Daily Patient Count by Key Condition", color_col='condition', 
-                    barmode='stack', height=getattr(app_config, 'DEFAULT_PLOT_HEIGHT', 380)+50
+                    daily_patient_load_summary, x_col='date', y_col='unique_patients',
+                    title="Daily Unique Patient Visits by Key Condition", color_col='condition',
+                    barmode='stack', height=app_config.DEFAULT_PLOT_HEIGHT + 70,
+                    y_axis_title="Unique Patients per Day", x_axis_title="Date",
+                    color_discrete_map=app_config.DISEASE_COLORS, # Use configured disease colors
+                    text_auto=False # Stacked bar text can be cluttered, rely on hover
                 ), use_container_width=True)
-            else: st.caption("No patient data for key conditions in selected period to display chart.")
-        else: st.caption("No patients with key conditions found in the selected period.")
-    else: st.info(f"Health records (filtered) are empty or missing required columns for Patient Load tab: {', '.join(required_cols_patients)} or 'date' is not datetime.")
-    
-    st.markdown("---"); st.markdown("###### Flagged Patient Cases for Review (Focused Diseases)")
-    if filtered_df is not None and not filtered_df.empty:
-        # get_patient_alerts_for_clinic should handle missing internal columns gracefully
-        flagged_patients_clinic_df = get_patient_alerts_for_clinic(filtered_df, risk_threshold=app_config.RISK_THRESHOLDS.get('moderate', 60))
-        if flagged_patients_clinic_df is not None and not flagged_patients_clinic_df.empty:
-            key_conditions_list_alerts = getattr(app_config, 'KEY_CONDITIONS_FOR_TRENDS', ['TB', 'Malaria', 'HIV-Positive'])
-            # Use .get() for 'condition' as its presence depends on get_patient_alerts_for_clinic
-            flagged_focused_df = flagged_patients_clinic_df[flagged_patients_clinic_df.get('condition', pd.Series(dtype=str)).isin(key_conditions_list_alerts)]
-            if not flagged_focused_df.empty:
-                display_cols = ['patient_id', 'condition', 'ai_risk_score', 'alert_reason', 'test_result']
-                actual_display_cols = [col for col in display_cols if col in flagged_focused_df.columns]
-                # Ensure 'ai_risk_score' is present before trying to sort or format it
-                sort_col = 'ai_risk_score' if 'ai_risk_score' in actual_display_cols else (actual_display_cols[0] if actual_display_cols else None)
-                column_config_alerts = { "ai_risk_score": st.column_config.NumberColumn(format="%.0f")} if 'ai_risk_score' in actual_display_cols else {}
+            else: st.caption("No patient load data for key conditions found in the selected period to display the chart.")
+        else: st.caption("No patients with key conditions recorded in the selected period.")
+    else:
+        st.info("Health records (filtered for period) are empty or missing key columns for Patient Load chart display.")
 
-                if sort_col:
-                    st.dataframe(flagged_focused_df[actual_display_cols].sort_values(by=sort_col, ascending=False).head(10), 
-                                use_container_width=True, column_config=column_config_alerts)
-                else:
-                     st.dataframe(flagged_focused_df[actual_display_cols].head(10), use_container_width=True, column_config=column_config_alerts)
-            else: st.info("No flagged patients matching key diseases found in the selected period.")
-        else: st.info("No specific patient cases flagged for review in the selected period.")
-    else: st.info("Filtered health records are empty; cannot generate patient alerts.")
+    st.markdown("---"); st.markdown("###### **Flagged Patient Cases for Clinical Review (Selected Period)**")
+    if not filtered_health_df_clinic.empty:
+        # Generate alerts based on the filtered data for the selected period
+        flagged_patients_clinic_review_df = get_patient_alerts_for_clinic(
+            filtered_health_df_clinic,
+            risk_threshold_moderate=app_config.RISK_THRESHOLDS['moderate']
+        )
+        if flagged_patients_clinic_review_df is not None and not flagged_patients_clinic_review_df.empty:
+            st.markdown(f"Found **{len(flagged_patients_clinic_review_df)}** patient cases flagged for review based on high risk, recent critical positive tests, or overdue critical tests within the period.")
+            
+            cols_for_alert_table_clinic = ['patient_id', 'condition', 'ai_risk_score', 'alert_reason',
+                                           'test_result', 'test_type', 'hiv_viral_load', 'priority_score', 'date']
+            alerts_display_df_clinic = flagged_patients_clinic_review_df[
+                [col for col in cols_for_alert_table_clinic if col in flagged_patients_clinic_review_df.columns]
+            ].copy()
+            
+            st.dataframe(
+                alerts_display_df_clinic.head(25), # Show top 25 flagged cases
+                use_container_width=True,
+                column_config={
+                    "ai_risk_score": st.column_config.ProgressColumn("AI Risk", format="%d", min_value=0, max_value=100, width="medium"),
+                    "date": st.column_config.DateColumn("Latest Record Date", format="YYYY-MM-DD"),
+                    "alert_reason": st.column_config.TextColumn("Alert Reason(s)", width="large", help="Reasons why this patient case is flagged."),
+                    "priority_score": st.column_config.NumberColumn("Priority", help="Calculated alert priority (higher is more urgent).", format="%d"),
+                    "hiv_viral_load": st.column_config.NumberColumn("HIV VL", format="%d copies/mL", help="HIV Viral Load if applicable.")
+                },
+                height=450, hide_index=True
+            )
+        else: st.info("No specific patient cases flagged for clinical review in the selected period based on current criteria.")
+    else: st.info("Filtered health records are empty; cannot generate patient alerts for clinical review.")
 
 
-with tab_environment_cl:
-    st.subheader("Clinic Environmental Monitoring")
-    required_cols_env_trends = ['timestamp'] # avg_co2_ppm, waiting_room_occupancy are checked inside
-    if filtered_iot_df_clinic is not None and not filtered_iot_df_clinic.empty and \
-       all(col in filtered_iot_df_clinic.columns for col in required_cols_env_trends) and \
-       pd.api.types.is_datetime64_any_dtype(filtered_iot_df_clinic['timestamp']):
+with tab_environment:
+    st.subheader("Clinic Environmental Monitoring - Trends & Details")
+    if not filtered_iot_df_clinic.empty and 'timestamp' in filtered_iot_df_clinic.columns:
+        # Display summary alerts first
+        env_summary_for_tab = get_clinic_environmental_summary(filtered_iot_df_clinic)
+        st.markdown(f"""
+        **Current Environmental Alerts (based on latest readings in period):**
+        - **CO2 Alerts:** {env_summary_for_tab.get('rooms_co2_alert_latest',0)} room(s) with CO2 > {app_config.CO2_LEVEL_ALERT_PPM}ppm.
+        - **PM2.5 Alerts:** {env_summary_for_tab.get('rooms_pm25_alert_latest',0)} room(s) with PM2.5 > {app_config.PM25_ALERT_UGM3}µg/m³.
+        - **Noise Alerts:** {env_summary_for_tab.get('rooms_noise_alert_latest',0)} room(s) with Noise > {app_config.NOISE_LEVEL_ALERT_DB}dB.
+        """)
+        if env_summary_for_tab.get('high_occupancy_alert_latest', False):
+            st.warning(f"⚠️ **High Waiting Room Occupancy Detected:** At least one area has occupancy > {app_config.TARGET_WAITING_ROOM_OCCUPANCY} persons (latest reading). Consider patient flow adjustments.")
 
-        # Use env_summary_clinic calculated for KPIs if available and based on the same filtered_iot_df_clinic
-        # Or recalculate if necessary:
-        current_env_summary_clinic = get_clinic_environmental_summary(filtered_iot_df_clinic)
-
-        st.markdown(f"**Alerts Summary (Latest readings in period):** {current_env_summary_clinic.get('co2_alert_rooms',0)} room(s) with high CO2; {current_env_summary_clinic.get('pm25_alert_rooms',0)} room(s) with high PM2.5.")
-        if current_env_summary_clinic.get('high_occupancy_alert'): st.warning(f"High waiting room occupancy detected (above {app_config.TARGET_WAITING_ROOM_OCCUPANCY}). Consider patient flow adjustments.")
-        
-        env_trend_cols_cl_tab = st.columns(2)
-        with env_trend_cols_cl_tab[0]:
+        # Trend charts for key environmental parameters
+        env_trend_plot_cols = st.columns(2)
+        with env_trend_plot_cols[0]:
             if 'avg_co2_ppm' in filtered_iot_df_clinic.columns:
-                co2_trend_cl_tab = get_trend_data(filtered_iot_df_clinic, 'avg_co2_ppm', date_col='timestamp', period='H', agg_func='mean')
-                if not co2_trend_cl_tab.empty: st.plotly_chart(plot_annotated_line_chart(co2_trend_cl_tab, "Hourly Avg. CO2 Levels", y_axis_title="CO2 (ppm)", target_line=app_config.CO2_LEVEL_ALERT_PPM, target_label="Alert Threshold", height=getattr(app_config, 'DEFAULT_PLOT_HEIGHT', 380)-20), use_container_width=True)
-                else: st.caption("No CO2 trend data.")
-            else: st.caption("Avg. CO2 data ('avg_co2_ppm') missing for trend.")
-        with env_trend_cols_cl_tab[1]:
-            if 'waiting_room_occupancy' in filtered_iot_df_clinic.columns:
-                occupancy_trend_cl_tab = get_trend_data(filtered_iot_df_clinic, 'waiting_room_occupancy', date_col='timestamp', period='H', agg_func='mean')
-                if not occupancy_trend_cl_tab.empty: st.plotly_chart(plot_annotated_line_chart(occupancy_trend_cl_tab, "Hourly Avg. Waiting Room Occupancy", y_axis_title="Persons", target_line=app_config.TARGET_WAITING_ROOM_OCCUPANCY, height=getattr(app_config, 'DEFAULT_PLOT_HEIGHT', 380)-20), use_container_width=True)
-                else: st.caption("No occupancy trend.")
-            else: st.caption("Occupancy data ('waiting_room_occupancy') missing for trend.")
-        
-        st.subheader("Latest Room Readings (in selected period)")
-        latest_room_display_cols = ['clinic_id', 'room_name', 'timestamp', 'avg_co2_ppm', 'avg_pm25', 'avg_temp_celsius', 'waiting_room_occupancy']
-        actual_latest_cols = [col for col in latest_room_display_cols if col in filtered_iot_df_clinic.columns]
-        required_latest_cols_check = ['timestamp', 'clinic_id', 'room_name']
+                hourly_avg_co2_trend = get_trend_data(filtered_iot_df_clinic, 'avg_co2_ppm', date_col='timestamp', period='H', agg_func='mean') # Hourly average
+                if not hourly_avg_co2_trend.empty:
+                    st.plotly_chart(plot_annotated_line_chart(
+                        hourly_avg_co2_trend, "Hourly Avg. CO2 Levels (All Rooms)", y_axis_title="CO2 (ppm)",
+                        target_line=app_config.CO2_LEVEL_ALERT_PPM, target_label="Alert Threshold",
+                        height=app_config.COMPACT_PLOT_HEIGHT, show_anomalies=True, date_format="%d %b, %H:%M" # Show date if multi-day range
+                    ), use_container_width=True)
+                else: st.caption("No CO2 trend data available for this period.")
+            else: st.caption("CO2 data ('avg_co2_ppm') is missing from IoT records for trend analysis.")
 
-        if all(col in actual_latest_cols for col in required_latest_cols_check):
-            latest_room_readings_cl = filtered_iot_df_clinic.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
-            if not latest_room_readings_cl.empty: 
-                st.dataframe(latest_room_readings_cl[actual_latest_cols].tail(10), use_container_width=True, height=280) 
-            else: st.caption("No detailed room readings for selected period after filtering.")
-        else: st.caption(f"Essential columns missing for detailed room readings. Need: {', '.join(required_latest_cols_check)}. Available: {', '.join(actual_latest_cols)}")
-    else: st.info("No clinic environmental data (filtered) available for this tab, or 'timestamp' column is problematic.")
+        with env_trend_plot_cols[1]:
+            if 'waiting_room_occupancy' in filtered_iot_df_clinic.columns:
+                hourly_avg_occupancy_trend = get_trend_data(filtered_iot_df_clinic, 'waiting_room_occupancy', date_col='timestamp', period='H', agg_func='mean')
+                if not hourly_avg_occupancy_trend.empty:
+                    st.plotly_chart(plot_annotated_line_chart(
+                        hourly_avg_occupancy_trend, "Hourly Avg. Waiting Room Occupancy", y_axis_title="Persons",
+                        target_line=app_config.TARGET_WAITING_ROOM_OCCUPANCY, target_label="Target Occupancy",
+                        height=app_config.COMPACT_PLOT_HEIGHT, show_anomalies=True, date_format="%d %b, %H:%M"
+                    ), use_container_width=True)
+                else: st.caption("No occupancy trend data available for this period.")
+            else: st.caption("Occupancy data ('waiting_room_occupancy') missing for trend analysis.")
+
+        st.markdown("---")
+        st.subheader("Latest Sensor Readings by Room (End of Selected Period)")
+        # Columns to display for latest room readings
+        latest_room_cols_display = ['clinic_id', 'room_name', 'timestamp', 'avg_co2_ppm', 'avg_pm25', 'avg_temp_celsius', 'avg_humidity_rh', 'avg_noise_db', 'waiting_room_occupancy']
+        available_latest_cols = [col for col in latest_room_cols_display if col in filtered_iot_df_clinic.columns]
+        
+        # Essential columns for this table to be meaningful
+        if all(c in available_latest_cols for c in ['timestamp', 'clinic_id', 'room_name']):
+            latest_room_sensor_readings = filtered_iot_df_clinic.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
+            if not latest_room_sensor_readings.empty:
+                st.dataframe(
+                    latest_room_sensor_readings[available_latest_cols].tail(15), # Show up to 15 latest distinct room readings
+                    use_container_width=True, height=380,
+                    column_config={ # Define formatting for better readability
+                        "timestamp": st.column_config.DatetimeColumn("Last Reading At", format="YYYY-MM-DD HH:mm"),
+                        "avg_co2_ppm": st.column_config.NumberColumn("CO2 (ppm)", format="%d ppm"),
+                        "avg_pm25": st.column_config.NumberColumn("PM2.5 (µg/m³)", format="%.1f µg/m³"),
+                        "avg_temp_celsius": st.column_config.NumberColumn("Temperature (°C)", format="%.1f°C"),
+                        "avg_humidity_rh": st.column_config.NumberColumn("Humidity (%RH)", format="%d%%"),
+                        "avg_noise_db": st.column_config.NumberColumn("Noise Level (dB)", format="%d dB"),
+                        "waiting_room_occupancy": st.column_config.NumberColumn("Occupancy", format="%d persons"),
+                    },
+                    hide_index=True
+                )
+            else: st.caption("No detailed room sensor readings available for the end of the selected period after filtering.")
+        else:
+            st.caption(f"Essential columns ('timestamp', 'clinic_id', 'room_name') missing for detailed room readings display. Available: {', '.join(available_latest_cols)}")
+    else:
+        st.info("No clinic environmental data available for this tab (either no data loaded, or none within the selected date range), or 'timestamp' column is problematic.")
