@@ -212,7 +212,7 @@ def plot_treemap(labels, values, parents, title):
         height=300
     )
     
-    logger.info(f"Rendered treemap: {title}")
+    logger.info(f"Successfully rendered treemap: {title}")
     return fig
 
 def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, facility_col, title):
@@ -229,7 +229,7 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
             data,
             geojson=geojson_data,
             locations=location_col,
-            featureidkey="properties.zone",
+            featureidkey="properties.name",
             color=value_col,
             color_continuous_scale="Reds",
             range_color=[2.0, 3.5],
@@ -242,7 +242,7 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
         facility_lats = []
         facility_texts = []
         for feature in geojson_data["features"]:
-            zone = feature["properties"]["zone"]
+            zone = feature["properties"]["name"]
             zone_data = data[data[location_col] == zone]
             if not zone_data.empty:
                 num_facilities = zone_data[facility_col].iloc[0]
@@ -303,14 +303,7 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
             mapbox=dict(
                 style="open-street-map",
                 center={"lat": sum(facility_lats) / len(facility_lats), "lon": sum(facility_lons) / len(facility_lons)},
-                "zoom=0,
-                zoom="5,
-                layers=[{
-                    "sourcetype": "geojson",
-                    "source": geojson_data,
-                    "type": "fill",
-                    "color": "rgba(255, 0, 0, 0.2)"
-                }]
+                zoom=6
             )
         )
         
@@ -319,9 +312,9 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
     except Exception as e:
         st.error(f"Error rendering choropleth map: {str(e)}")
         logger.error(f"Choropleth map error: {str(e)}")
-        return None
+        return go.Figure()
 
-def render_kpi_card(title, value, icon, status=None):
+def render_kpi_card(title, value, icon, status=None, drilldown=False):
     """
     Render a styled KPI card.
     """
@@ -339,6 +332,7 @@ def render_kpi_card(title, value, icon, status=None):
                 <div>
                     <h3 class="text-sm font-semibold">{title}</h3>
                     <p class="text-lg font-bold">{value}</p>
+                    {'<a href="#" class="text-blue-600 text-sm">Details</a>' if drilldown else ''}
                 </div>
             </div>
         </div>
