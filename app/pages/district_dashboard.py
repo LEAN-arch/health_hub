@@ -49,6 +49,15 @@ with col4:
 st.subheader("AI Disease Risk Map")
 if geojson_data:
     try:
+        # Validate GeoJSON properties
+        for feature in geojson_data["features"]:
+            if "name" not in feature["properties"]:
+                raise KeyError(f"Missing 'name' property in GeoJSON feature: {feature['properties']}")
+            if "risk" not in feature["properties"]:
+                raise KeyError(f"Missing 'risk' property in GeoJSON feature: {feature['properties']}")
+            if "facilities" not in feature["properties"]:
+                raise KeyError(f"Missing 'facilities' property in GeoJSON feature: {feature['properties']}")
+
         zone_data = pd.DataFrame([
             {"name": f["properties"]["name"], "risk": f["properties"]["risk"], "facilities": f["properties"]["facilities"]}
             for f in geojson_data["features"]
