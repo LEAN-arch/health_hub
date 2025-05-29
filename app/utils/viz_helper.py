@@ -2,6 +2,11 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def plot_annotated_line_chart(labels, data, title, color, target_line=None, target_label=None, ci_lower=None, ci_upper=None):
     """
@@ -9,6 +14,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
     """
     if not labels or not data or len(labels) != len(data):
         st.error("Invalid input: Labels and data must be non-empty and of equal length.")
+        logger.error("Invalid input for line chart")
         return go.Figure()
     
     fig = go.Figure()
@@ -19,8 +25,6 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         mode="lines+markers",
         line=dict(color=color, width=3),
         marker=dict(size=8, color=color),
-        fill="tozeroy",
-        fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.1)",
         name=title
     ))
     
@@ -29,7 +33,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
             x=labels + labels[::-1],
             y=ci_upper + ci_lower[::-1],
             fill="toself",
-            fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.2)",
+            fillcolor=f"rgba(150, 150, 150, 0.2)",  # Simplified fillcolor
             line=dict(color="transparent"),
             name="CI"
         ))
@@ -38,13 +42,12 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         fig.add_hline(
             y=target_line,
             line_dash="dash",
-            line_color="#ef4444",
+            line_color="red",
             annotation_text=target_label,
             annotation_position="top right",
-            annotation_font_color="#ef4444"
+            annotation_font_color="red"
         )
     
-    # Add anomaly annotations
     try:
         anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
         for idx in anomalies:
@@ -59,6 +62,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
             )
     except Exception as e:
         st.warning(f"Error detecting anomalies: {str(e)}")
+        logger.warning(f"Anomaly detection error: {str(e)}")
     
     fig.update_layout(
         title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
@@ -71,6 +75,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         height=300
     )
     
+    logger.info(f"Rendered line chart: {title}")
     return fig
 
 def plot_bar_chart(categories, values, title, color):
@@ -79,6 +84,7 @@ def plot_bar_chart(categories, values, title, color):
     """
     if not categories or not values or len(categories) != len(values):
         st.error("Invalid input: Categories and values must be non-empty and of equal length.")
+        logger.error("Invalid input for bar chart")
         return go.Figure()
     
     fig = go.Figure()
@@ -102,6 +108,7 @@ def plot_bar_chart(categories, values, title, color):
         height=300
     )
     
+    logger.info(f"Rendered bar chart: {title}")
     return fig
 
 def plot_donut_chart(labels, values, title):
@@ -110,6 +117,7 @@ def plot_donut_chart(labels, values, title):
     """
     if not labels or not values or len(labels) != len(values):
         st.error("Invalid input: Labels and values must be non-empty and of equal length.")
+        logger.error("Invalid input for donut chart")
         return go.Figure()
     
     fig = go.Figure()
@@ -132,6 +140,7 @@ def plot_donut_chart(labels, values, title):
         height=300
     )
     
+    logger.info(f"Rendered donut chart: {title}")
     return fig
 
 def plot_heatmap(matrix, title):
@@ -143,6 +152,7 @@ def plot_heatmap(matrix, title):
         text = np.around(z, decimals=2)
     except (ValueError, TypeError) as e:
         st.error(f"Invalid matrix data for heatmap: {str(e)}")
+        logger.error(f"Heatmap data error: {str(e)}")
         return go.Figure()
 
     fig = go.Figure(data=go.Heatmap(
@@ -167,6 +177,7 @@ def plot_heatmap(matrix, title):
         height=300
     )
     
+    logger.info(f"Rendered heatmap: {title}")
     return fig
 
 def plot_treemap(labels, values, parents, title):
@@ -175,6 +186,7 @@ def plot_treemap(labels, values, parents, title):
     """
     if not labels or not values or not parents or len(labels) != len(values) or len(labels) != len(parents):
         st.error("Invalid input: Labels, values, and parents must be non-empty and of equal length.")
+        logger.error("Invalid input for treemap")
         return go.Figure()
     
     fig = go.Figure(go.Treemap(
@@ -191,14 +203,16 @@ def plot_treemap(labels, values, parents, title):
         height=300
     )
     
+    logger.info(f"Rendered treemap: {title}")
     return fig
 
 def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility_col, title):
     """
     Create a layered choropleth map with risk and facilities.
     """
-    if not geojson or not data or location_col not in data or value_col not in data or facility_col not in data:
+    if not geojson or data.empty or location_col not in data or value_col not in data or facility_col not in data:
         st.error("Invalid input: GeoJSON and data must be valid with required columns.")
+        logger.error("Invalid input for choropleth map")
         return go.Figure()
     
     try:
@@ -236,9 +250,11 @@ def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility
             paper_bgcolor="white"
         )
         
+        logger.info(f"Rendered choropleth map: {title}")
         return fig
     except Exception as e:
         st.error(f"Error rendering choropleth map: {str(e)}")
+        logger.error(f"Choropleth map error: {str(e)}")
         return go.Figure()
 
 def render_kpi_card(title, value, icon, status=None, drilldown=False):
