@@ -46,13 +46,19 @@ for alert in mock_data['alerts']:
 
 # Alert Prioritization
 st.subheader("Alert Prioritization")
-alert_df = pd.DataFrame(mock_data['alerts'])
-st.plotly_chart(plot_treemap(
-    alert_df["id"],
-    alert_df["priority_score"],
-    alert_df["type"],
-    "Alert Prioritization by Type"
-), use_container_width=True)
+try:
+    alert_df = pd.DataFrame(mock_data['alerts'])
+    if not alert_df.empty:
+        st.plotly_chart(plot_treemap(
+            alert_df["id"],
+            alert_df["priority_score"],
+            alert_df["type"],
+            "Alert Prioritization by Type"
+        ), use_container_width=True)
+    else:
+        st.warning("No alert data available for treemap.")
+except Exception as e:
+    st.error(f"Error rendering treemap: {str(e)}")
 
 # Risk Zones
 st.subheader("High-Risk Zones")
