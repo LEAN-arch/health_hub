@@ -6,13 +6,13 @@ P004,2023-10-02,Pneumonia,Chest X-Ray,Positive,2,2023-09-30,Amoxicillin Syrup,1,
 P005,2023-10-03,TB,Sputum-GeneXpert,Positive,2,2023-10-01,TB-Regimen A,0,98,2,ZoneA,88,3400,96,94,38.1,0,C01,DOC001,Resistant strain suspected,Negative,,1,Initiated,2023-10-02,1,Male,55,68,48,6.0,65,7
 P006,2023-10-03,STI-Syphilis,RPR,Positive,1,2023-10-02,Penicillin G,1,30,0.2,ZoneB,75,5800,97,95,37.0,0,C02,DOC002,,Negative,,1,Completed,2023-09-28,0,Female,38,72,42,7.5,80,4
 P007,2023-10-04,Anemia,Hemoglobin Test,Low,0,2023-10-04,Iron-Folate Tabs,1,150,3,ZoneC,55,7500,98,97,36.9,0,C03,DOC003,,Negative,,0,N/A,,,Male,28,66,52,6.8,72,3
-P008,2023-10-05,HIV-Positive,HIV-ViralLoad,2500,7,2023-09-28,ARV-Regimen B,1,73,0.5,ZoneA,92,4200,96,94,38.2,0,C01,DOC001,Initiate adherence counseling,Positive,2500,1,Pending,2023-10-04,0,Female,50,78,38,5.5,58,8
+P008,2023-10-05,HIV-Positive,HIV-ViralLoad,"2500",7,2023-09-28,ARV-Regimen B,1,73,0.5,ZoneA,92,4200,96,94,38.2,0,C01,DOC001,Initiate adherence counseling,Positive,2500,1,Pending,2023-10-04,0,Female,50,78,38,5.5,58,8
 P009,2023-10-06,Dengue,NS1 Antigen,Positive,1,2023-10-05,,0,0,0,ZoneB,68,5300,97,96,37.4,0,C02,DOC002,,Negative,,0,Pending,2023-10-05,0,Male,33,70,46,7.0,75,4
 P010,2023-10-06,STI-Gonorrhea,NAAT-GC,Positive,3,2023-10-03,Ceftriaxone Inj,1,20,0.1,ZoneC,78,4900,96,95,37.6,0,C03,DOC003,,Negative,,1,Initiated,2023-10-04,0,Female,29,74,41,6.2,68,6
 P001,2023-10-07,TB,Follow-up,N/A,0,2023-10-07,TB-Regimen A,0,96,2,ZoneA,80,3700,97,95,37.3,0,C01,DOC001,Condition improving,Negative,,1,Follow-up,2023-10-06,1,Male,45,64,51,6.7,73,4
 P011,2023-10-08,Wellness Visit,PapSmear,Normal,5,2023-10-03,Wellness Pack,0,0,0,ZoneA,15,10500,99,98,36.7,0,C01,DOC001,,Normal,,0,N/A,,,Female,42,58,60,8.2,90,1
 P012,2023-10-09,Malaria,RDT-Malaria,Negative,0,2023-10-09,ACT Tablets,0,46,1,ZoneB,40,7800,98,97,37.1,0,C02,DOC002,,Negative,,0,Completed,2023-10-07,0,Male,35,62,53,7.8,82,2
-P003,2023-10-10,HIV-Positive,CD4 Count,350,4,2023-10-06,ARV-Regimen B,0,72,0.5,ZoneA,50,8000,99,98,37.0,0,C01,DOC001,Switched from checkup,Positive,350,0,Follow-up,2023-10-08,0,Male,62,61,54,7.9,84,3
+P003,2023-10-10,HIV-Positive,CD4 Count,"350",4,2023-10-06,ARV-Regimen B,0,72,0.5,ZoneA,50,8000,99,98,37.0,0,C01,DOC001,Switched from checkup,Positive,350,0,Follow-up,2023-10-08,0,Male,62,61,54,7.9,84,3
 P013,2023-10-11,Pneumonia,Sputum Culture,Pending,0,2023-10-11,Amoxicillin Syrup,0,190,5,ZoneC,66,4600,95,94,37.8,0,C03,DOC003,Awaiting results,Negative,,0,Pending,2023-10-11,0,Female,48,76,39,5.2,62,7
 P005,2023-10-12,TB,Follow-up,N/A,0,2023-10-12,TB-Regimen A,0,90,2,ZoneA,70,3800,97,95,37.1,0,C01,DOC001,Monitoring side effects,Negative,,1,Follow-up,2023-10-10,1,Male,55,67,49,6.1,67,6
 P014,2023-10-13,Hypertension,BP Check,High,0,2023-10-13,Amlodipine,1,120,1.5,ZoneD,72,5500,98,96,37.2,0,C04,DOC004,New diagnosis HTN,Negative,,1,Pending,2023-10-13,0,Female,58,80,35,5.8,55,7
@@ -23,3 +23,8 @@ P017,2023-10-17,TB,Sputum-AFB,Positive,3,2023-10-14,TB-Regimen B,1,80,1.8,ZoneB,
 P018,2023-10-18,Wellness Visit,Cholesterol Test,Borderline,1,2023-10-17,,0,0,0,ZoneD,45,7200,98,97,36.9,0,C04,DOC004,,Negative,,0,N/A,,,Male,53,63,58,7.7,83,2
 P019,2023-10-19,Anemia,Ferritin Test,Low,2,2023-10-17,Iron Sucrose IV,1,25,0.3,ZoneA,70,4000,95,93,37.5,0,C01,DOC001,Severe anemia,Negative,,1,Initiated,2023-10-18,0,Female,39,79,36,5.7,57,7
 P020,2023-10-20,Pneumonia,Follow-up,Improving,1,2023-10-19,Amoxicillin Syrup,0,180,5,ZoneB,55,5000,97,96,37.1,0,C02,DOC002,,Negative,,0,Completed,2023-10-18,0,Male,65,72,45,6.6,71,5
+P021,2023-10-21,Hypertension,Follow-up,Stable,0,2023-10-21,Lisinopril,0,50,0.5,ZoneA,40,9200,99,98,36.5,0,C01,DOC001,BP controlled,Negative,,0,N/A,,,Female,68,60,59,8.1,88,2
+P022,2023-10-22,Diabetes,HbA1c,7.5,3,2023-10-19,Insulin Pens,1,60,1,ZoneB,70,4800,96,94,37.2,0,C02,DOC002,Adjusting insulin,Negative,,1,Pending,2023-10-22,0,Male,52,72,42,5.9,63,7
+P023,2023-10-23,Wellness Visit,Mental Health Screen,Moderate,0,2023-10-23,,,0,0,0,ZoneC,50,6500,97,96,37.0,0,C03,DOC003,Referred to counseling,Negative,,0,Pending,2023-10-23,0,Female,34,68,48,6.9,74,6
+P024,2023-10-24,TB,Chest X-Ray,Positive,1,2023-10-23,TB-Regimen A,1,70,2.2,ZoneD,89,3200,94,92,38.3,0,C04,DOC004,New extensive TB,Negative,,1,Initiated,2023-10-24,0,Male,40,75,40,5.1,59,8
+P025,2023-10-25,STI-HPV,PapSmear,Abnormal-LSIL,7,2023-10-18,,,0,0,0,ZoneA,60,7100,98,97,36.8,0,C01,DOC001,Needs colposcopy,Positive,,0,Pending,2023-10-25,0,Female,29,66,50,7.6,81,4
