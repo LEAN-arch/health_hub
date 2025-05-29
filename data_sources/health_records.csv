@@ -1,71 +1,41 @@
-date,zone_id,patient_id,age,gender,condition,chw_visit,referral_status,referral_date,test_type,test_result,test_date,test_turnaround_days,supply_item,supply_level_days,ai_risk_score,tb_contact_traced,avg_daily_steps,resting_heart_rate,avg_hrv,avg_sleep_duration_hrs,sleep_score_pct,stress_level_score,avg_skin_temp_celsius,max_skin_temp_celsius,avg_spo2_pct,min_spo2_pct,fall_detected_today
-2023-10-01,TJ-ZONA-RIO,P001,28,Female,STI-Syphilis,1,Pending,2023-10-01,RPR,Pending,2023-10-01,,Penicillin,20,60,0,6000,70,40,7.0,75,3,36.8,37.5,97,95,0
-2023-10-01,TJ-CENTRO,P002,35,Male,TB,1,Completed,2023-09-28,Sputum-AFB,Positive,2023-10-01,2,TB-Regimen1,30,85,1,4500,78,32,5.9,60,7,37.2,38.1,96,94,0
-2023-10-01,TJ-OTAY,P003,22,Female,Anemia,0,N/A,N/A,Hemoglobin,Low,2023-10-01,0,Iron-Folate,45,50,0,7500,65,48,7.5,85,2,36.5,37.0,98,97,0
-2023-10-01,TJ-PLAYAS,P004,40,Male,Malaria,1,Completed,2023-09-30,RDT-Malaria,Positive,2023-10-01,0,ACT,10,70,0,3000,80,30,5.0,50,6,37.8,38.8,95,93,0
-2023-10-02,TJ-LA-MESA,P005,19,Female,HPV-Screening,1,Pending,2023-10-02,PapSmear,Pending,2023-10-02,,N/A,N/A,45,0,8000,65,50,7.8,88,1,36.7,37.1,99,98,0
-2023-10-02,TJ-ZONA-RIO,P006,55,Male,Pneumonia,1,Initiated,2023-10-02,ChestXRay,Suspicious,2023-10-02,,Amoxicillin-HV,12,78,0,1500,85,25,4.5,45,8,37.5,38.5,93,90,0
-2023-10-03,TJ-CENTRO,P007,29,Male,HIV-Testing,1,N/A,N/A,HIV-Rapid,Negative,2023-10-03,0,N/A,N/A,30,0,9000,60,55,8.0,90,1,36.6,36.9,98,97,0
-2023-10-03,TJ-OTAY,P008,42,Female,NTD-Chagas,0,Pending,2023-10-03,Serology-Chagas,Pending,2023-10-03,,Benznidazole,60,65,0,5000,70,40,6.8,72,4,37.0,37.4,97,96,0
-2023-10-04,TJ-PLAYAS,P009,31,Male,STI-Gonorrhea,1,Completed,2023-10-02,NAAT-GC,Positive,2023-10-04,2,Ceftriaxone,7,75,0,3500,78,33,5.5,58,6,37.3,38.0,96,94,0
-2023-10-04,TJ-LA-MESA,P010,26,Female,TB,1,Follow-up,2023-10-01,Sputum-Culture,Pending,2023-10-04,,TB-Regimen2,25,82,1,4000,78,32,5.9,60,5,37.1,37.8,95,93,0
-2023-10-05,TJ-ZONA-RIO,P011,68,Male,Anemia,1,Pending,2023-10-05,Hemoglobin,Very Low,2023-10-05,0,BloodTransfusionSet,5,88,0,1200,90,22,4.0,30,9,36.0,36.5,92,89,1
-2023-10-05,TJ-CENTRO,P012,24,Female,HPV-Screening,0,Completed,2023-10-03,PapSmear,Normal,2023-10-05,2,N/A,N/A,25,0,7800,66,49,7.7,87,2,36.8,37.2,98,97,0
-2023-10-06,TJ-OTAY,P013,48,Male,Pneumonia,1,Follow-up,2023-10-04,ChestXRay,Improving,2023-10-06,2,Azithromycin,9,65,0,2500,75,35,6.0,65,5,37.0,37.5,95,94,0
-2023-10-06,TJ-PLAYAS,P014,18,Female,Malaria,1,Pending,2023-10-06,RDT-Malaria,Pending,2023-10-06,,ACT,18,58,0,6000,70,40,7.1,78,3,37.2,37.9,97,96,0
-2023-10-07,TJ-LA-MESA,P015,50,Male,HIV-Positive,0,Initiated,2023-10-07,CD4 Count,Low,2023-10-07,0,ARV-RegimenA,28,77,0,3200,82,28,5.2,52,7,36.9,37.3,96,95,0
-2023-10-07,TJ-ZONA-RIO,P016,33,Female,STI-Chlamydia,1,Pending,2023-10-07,NAAT-Chlamydia,Pending,2023-10-07,,Azithromycin,15,62,0,5800,71,39,6.9,73,4,36.7,37.2,97,96,0
-2023-10-08,TJ-CENTRO,P017,27,Male,TB,1,Pending,2023-10-08,GeneXpert,Pending,2023-10-08,,TB-Regimen1,20,80,0,4800,76,34,6.1,63,6,37.0,37.6,96,94,0
-2023-10-08,TJ-OTAY,P018,65,Female,Anemia,1,Follow-up,2023-10-05,Hemoglobin,Low,2023-10-08,3,Iron-Oral,30,60,0,2800,80,30,5.8,60,5,36.6,37.1,95,93,0
-2023-10-09,TJ-PLAYAS,P019,38,Male,NTD-Leishmaniasis,0,N/A,N/A,SkinBiopsy,Positive,2023-10-09,0,SodiumStibogluconate,N/A,72,0,4200,77,33,5.7,58,7,37.4,38.2,96,94,0
-2023-10-09,TJ-LA-MESA,P020,23,Female,HPV-Vaccination,1,Completed,N/A,N/A,N/A,N/A,,Gardasil,N/A,30,0,8500,62,52,7.9,90,1,36.5,36.8,99,98,0
-2023-10-10,TJ-ZONA-RIO,P021,46,Male,Pneumonia,1,Completed,2023-10-08,Sputum-Culture,Positive,2023-10-10,2,Levofloxacin,8,85,0,1000,90,20,3.5,25,9,38.0,39.1,91,88,1
-2023-10-10,TJ-CENTRO,P022,30,Female,Malaria,0,Follow-up,2023-10-05,Microscopy-Malaria,Negative,2023-10-10,0,N/A,N/A,40,0,7200,67,47,7.3,83,2,36.9,37.3,98,97,0
-2023-10-11,TJ-OTAY,P023,58,Male,HIV-Positive,1,Follow-up,2023-10-08,Viral Load,Detectable,2023-10-11,0,ARV-RegimenB,22,68,0,3800,79,31,5.6,57,6,37.0,37.4,97,95,0
-2023-10-11,TJ-PLAYAS,P024,21,Female,STI-Syphilis,1,Completed,2023-10-09,RPR,Positive,2023-10-11,2,Penicillin,14,70,0,4000,80,30,5.1,51,7,37.6,38.4,94,92,0
-2023-10-12,TJ-LA-MESA,P025,36,Male,TB,1,Initiated,2023-10-12,GeneXpert,Positive-RIFRes,2023-10-12,0,TB-RegimenMDR,60,90,0,2000,88,23,4.2,35,8,37.7,38.6,93,91,0
-2023-10-12,TJ-ZONA-RIO,P026,29,Female,Anemia,0,Pending,2023-10-12,Ferritin,Low,2023-10-12,0,Iron-IV,N/A,66,0,6200,73,37,6.6,70,4,36.4,36.9,96,95,0
-2023-10-13,TJ-CENTRO,P027,43,Male,NTD-Geohelminths,1,N/A,N/A,Stool-OvaParasite,Positive,2023-10-13,0,Albendazole,N/A,55,0,7500,68,45,7.4,82,2,36.7,37.1,98,97,0
-2023-10-13,TJ-OTAY,P028,17,Female,HPV-Screening,1,Completed,2023-10-11,VisualInspectionAcetic,Positive,2023-10-13,2,ColposcopyReferral,N/A,50,0,8100,64,51,7.9,89,1,36.6,37.0,99,98,0
-2023-10-14,TJ-PLAYAS,P029,52,Male,Pneumonia,0,Follow-up,2023-10-10,N/A,N/A,N/A,,N/A,N/A,60,0,3100,76,34,6.3,66,4,36.8,37.2,97,95,0
-2023-10-14,TJ-LA-MESA,P030,20,Female,STI-Trichomonas,1,Pending,2023-10-14,WetMount,Pending,2023-10-14,,Metronidazole,20,58,0,6700,69,41,7.0,76,3,36.9,37.4,97,96,0
-2023-10-15,TJ-ZONA-RIO,P031,39,Male,TB,1,Follow-up,2023-10-10,Sputum-AFB,Negative,2023-10-15,5,TB-Regimen1,10,55,1,5800,70,43,7.1,79,2,36.7,37.0,98,97,0
-2023-10-15,TJ-CENTRO,P032,26,Female,Malaria,1,Completed,2023-10-13,RDT-Malaria,Positive,2023-10-15,2,Coartem,5,72,0,3300,79,32,5.3,54,7,37.9,38.9,94,91,0
-2023-10-16,TJ-OTAY,P033,61,Male,Anemia,0,N/A,N/A,CBC,ModerateAnemia,2023-10-16,0,Erythropoietin,N/A,76,0,2200,85,26,4.8,48,8,36.2,36.7,93,90,0
-2023-10-16,TJ-PLAYAS,P034,34,Female,HIV-Testing,1,Completed,N/A,HIV-SelfTest,Negative,2023-10-16,0,N/A,N/A,28,0,9200,63,54,8.1,91,1,36.5,36.9,99,98,0
-2023-10-17,TJ-LA-MESA,P035,47,Male,Pneumonia,1,Pending,2023-10-17,BloodCulture,Pending,2023-10-17,,Ceftriaxone-IV,7,88,0,800,92,18,3.0,20,9,38.2,39.3,90,87,1
-2023-10-17,TJ-ZONA-RIO,P036,25,Female,STI-HPVPositive,0,Follow-up,2023-10-14,Colposcopy,CIN1,2023-10-17,3,N/A,N/A,60,0,7000,68,46,7.6,86,2,36.7,37.1,98,97,0
-2023-10-18,TJ-CENTRO,P037,53,Male,TB,1,Follow-up,2023-10-12,ChestXRay,Stable,2023-10-18,6,TB-RegimenMDR,30,70,1,3500,74,36,6.4,67,4,36.9,37.3,97,96,0
-2023-10-18,TJ-OTAY,P038,19,Female,NTD-Ascariasis,1,Completed,2023-10-16,Stool-OvaParasite,Positive,2023-10-18,2,Mebendazole,N/A,48,0,7900,66,49,7.7,87,2,36.8,37.2,98,97,0
-2023-10-19,TJ-PLAYAS,P039,41,Male,Malaria,0,N/A,N/A,N/A,N/A,N/A,,N/A,N/A,50,0,6100,69,42,7.1,78,3,37.1,37.5,97,96,0
-2023-10-19,TJ-LA-MESA,P040,32,Female,Anemia,1,Pending,2023-10-19,Hemoglobin,Low,2023-10-19,0,Iron-Folate,35,60,0,5500,72,38,6.7,71,4,36.5,37.0,96,94,0
-2023-10-20,TJ-ZONA-RIO,P041,27,Male,STI-Herpes,1,Initiated,2023-10-20,ViralCulture,Pending,2023-10-20,,Acyclovir,25,68,0,4900,75,35,6.0,62,6,37.0,37.8,95,93,0
-2023-10-20,TJ-CENTRO,P042,70,Female,Pneumonia,1,Follow-up,2023-10-15,SpO2Monitoring,Stable,2023-10-20,5,N/A,N/A,55,0,1800,80,30,5.5,58,5,36.7,37.1,94,92,0
-2023-10-21,TJ-OTAY,P043,36,Male,HIV-Positive,1,Pending,2023-10-21,ViralLoad,Pending,2023-10-21,,ARV-RegimenA,20,82,0,2800,84,27,4.9,49,7,36.8,37.2,96,95,0
-2023-10-21,TJ-PLAYAS,P044,24,Female,TB,0,Completed,2023-10-18,Sputum-AFB,Negative,2023-10-21,3,N/A,N/A,40,1,7600,67,48,7.6,85,2,36.9,37.3,98,97,0
-2023-10-22,TJ-LA-MESA,P045,49,Male,Malaria,1,Pending,2023-10-22,RDT-Malaria,Pending,2023-10-22,,ACT,12,63,0,5200,73,37,6.5,69,4,37.3,38.1,96,94,0
-2023-10-22,TJ-ZONA-RIO,P046,31,Female,NTD-Hookworm,1,Completed,2023-10-20,Stool-OvaParasite,Positive,2023-10-22,2,Albendazole,N/A,52,0,7300,69,44,7.2,80,3,36.6,37.0,97,96,0
-2023-10-23,TJ-CENTRO,P047,44,Male,Anemia,1,N/A,N/A,IronStudies,IDA,2023-10-23,0,Iron-Sulfate,40,68,0,4000,78,33,5.8,61,5,36.3,36.8,94,92,0
-2023-10-23,TJ-OTAY,P048,20,Female,HPV-Screening,0,Follow-up,2023-10-20,PapSmear,ASCUS,2023-10-23,3,HPV-DNAReferral,N/A,58,0,8800,63,53,8.0,91,1,36.7,37.1,99,98,0
-2023-10-24,TJ-PLAYAS,P049,57,Male,Pneumonia,1,Initiated,2023-10-24,Procalcitonin,High,2023-10-24,0,AntibioticY,10,80,0,1300,87,24,4.3,40,8,37.8,38.7,92,90,0
-2023-10-24,TJ-LA-MESA,P050,28,Female,STI-Chancroid,1,Pending,2023-10-24,Culture-H.ducreyi,Pending,2023-10-24,,Azithromycin,18,65,0,5900,72,39,6.8,74,4,37.0,37.5,97,95,0
-2023-10-25,TJ-ZONA-RIO,P051,63,Male,TB,0,Follow-up,2023-10-18,Sputum-Culture,Negative,2023-10-25,7,TB-Regimen1,5,45,1,2500,70,40,7.0,77,3,36.6,36.9,98,97,0
-2023-10-25,TJ-CENTRO,P052,37,Female,Malaria,1,Pending,2023-10-25,Microscopy-Malaria,Pending,2023-10-25,,Primaquine,N/A,60,0,4300,74,36,6.2,65,5,37.5,38.3,95,93,0
-2023-10-26,TJ-OTAY,P053,25,Male,HIV-Testing,1,Pending,2023-10-26,HIV-Rapid,Pending,2023-10-26,,N/A,N/A,40,0,9500,61,56,8.2,92,1,36.7,37.0,99,98,0
-2023-10-26,TJ-PLAYAS,P054,51,Female,Anemia,1,N/A,N/A,PeripheralSmear,Microcytic,2023-10-26,0,FolicAcid,50,72,0,3100,82,29,5.4,56,7,36.1,36.6,93,91,0
-2023-10-27,TJ-LA-MESA,P055,33,Male,Pneumonia,0,Completed,2023-10-24,N/A,N/A,N/A,,N/A,N/A,50,0,2000,70,41,6.9,75,3,36.9,37.2,96,95,0
-2023-10-27,TJ-ZONA-RIO,P056,26,Female,STI-BV,1,Initiated,2023-10-27,WhiffTest,Positive,2023-10-27,0,MetronidazoleGel,22,55,0,6800,68,44,7.3,81,2,36.8,37.3,98,97,0
-2023-10-28,TJ-CENTRO,P057,40,Male,TB,1,Follow-up,2023-10-22,IGRA,Positive,2023-10-28,6,INHProphylaxis,90,70,1,4600,73,37,6.6,70,4,37.0,37.4,97,96,0
-2023-10-28,TJ-OTAY,P058,16,Female,HPV-Vaccination,1,Pending,2023-10-28,N/A,N/A,N/A,,Gardasil-Dose2,N/A,35,0,8200,64,50,7.8,88,1,36.5,36.9,99,98,0
-2023-10-29,TJ-PLAYAS,P059,48,Male,NTD-LymphaticFilariasis,0,Pending,2023-10-29,BloodSmear-Night,Pending,2023-10-29,,DEC,N/A,67,0,4500,76,34,6.1,64,6,37.2,37.7,96,94,0
-2023-10-29,TJ-LA-MESA,P060,30,Female,Anemia,1,Completed,2023-10-26,Hemoglobin,Normal,2023-10-29,3,N/A,N/A,38,0,7700,66,47,7.5,84,2,36.7,37.0,98,97,0
-2023-10-30,TJ-ZONA-RIO,P061,72,Male,Pneumonia,1,Pending,2023-10-30,CRP,High,2023-10-30,0,Oxygen,2,92,0,500,95,15,2.5,15,10,38.5,39.5,88,85,1
-2023-10-30,TJ-CENTRO,P062,22,Female,STI-GenitalWarts,1,Pending,2023-10-30,VisualInspection,Positive,2023-10-30,,Podophyllin,N/A,50,0,6300,70,40,7.0,76,3,36.9,37.3,97,96,0
-2023-10-31,TJ-OTAY,P063,38,Male,TB,1,Initiated,2023-10-31,Sputum-AFB,Positive,2023-10-31,0,TB-Regimen1,28,88,0,3300,80,30,5.4,57,7,37.6,38.5,94,92,0
-2023-10-31,TJ-PLAYAS,P064,29,Female,HIV-Positive,0,Follow-up,2023-10-25,CD4 Count,Stable,2023-10-31,6,ARV-RegimenC,15,60,0,5800,71,39,6.7,72,4,37.0,37.2,97,95,0
-2023-11-01,TJ-LA-MESA,P065,51,Male,Malaria,1,Completed,2023-10-29,RDT-Malaria,Negative,2023-11-01,3,N/A,N/A,42,0,6900,67,46,7.4,83,2,36.8,37.1,98,97,0
-2023-11-01,TJ-ZONA-RIO,P066,19,Female,Anemia,1,Pending,2023-11-01,Hemoglobin,Low,2023-11-01,0,Iron-Folate,40,58,0,6100,72,38,6.6,70,4,36.4,36.9,95,93,0
-2023-11-01,TJ-CENTRO,P067,43,Male,Pneumonia,1,Pending,2023-11-01,SputumGramStain,Pending,2023-11-01,,Levofloxacin,9,77,0,1200,86,26,4.6,46,8,37.7,38.6,93,91,0
-2023-11-02,TJ-OTAY,P068,27,Female,STI-Syphilis,0,Follow-up,2023-10-28,RPR,NonReactive,2023-11-02,5,N/A,N/A,35,0,7000,65,50,7.9,89,1,36.7,37.0,99,98,0
-2023-11-02,TJ-PLAYAS,P069,60,Male,TB,1,Follow-up,2023-10-26,Sputum-AFB,Negative,2023-11-02,7,TB-Regimen2,10,50,1,3900,70,42,7.0,78,3,36.8,37.1,98,96,0
-2023-11-02,TJ-LA-MESA,P070,34,Female,HIV-Testing,1,Completed,N/A,HIV-Rapid,Negative,2023-11-02,0,N/A,N/A,25,0,8900,62,53,8.0,90,1,36.6,36.9,99,98,0
+patient_id,date,condition,test_type,test_result,test_turnaround_days,test_date,item,quantity_dispensed,stock_on_hand,consumption_rate_per_day,zone_id,ai_risk_score,avg_daily_steps,avg_spo2,clinic_id,physician_id,notes,hpv_status,hiv_viral_load
+P001,2023-10-01,TB,Sputum-AFB,Positive,3,2023-09-28,TB-Regimen A,1,100,2,ZoneA,85,3500,97,C01,DOC001,Follow up required,Negative,
+P002,2023-10-01,Malaria,RDT-Malaria,Positive,0,2023-10-01,ACT Tablets,1,50,1,ZoneB,70,6200,98,C02,DOC002,,Negative,
+P003,2023-10-02,Healthy Checkup,HIV-Rapid,Negative,1,2023-10-01,ARV-Regimen B,0,75,0.5,ZoneA,30,8100,99,C01,DOC001,,Negative,
+P004,2023-10-02,Pneumonia,Chest X-Ray,Positive,2,2023-09-30,Amoxicillin Syrup,1,200,5,ZoneC,65,4500,95,C03,DOC003,,Negative,
+P001,2023-10-03,TB,Sputum-GeneXpert,Positive,2,2023-10-01,TB-Regimen A,0,98,2,ZoneA,88,3400,96,C01,DOC001,Resistant strain suspected,Negative,
+P005,2023-10-03,STI-Syphilis,RPR,Positive,1,2023-10-02,Penicillin G,1,30,0.2,ZoneB,75,5800,97,C02,DOC002,,Negative,
+P006,2023-10-04,Healthy Checkup,PapSmear,Normal,5,2023-09-29,,0,0,0,ZoneA,25,9200,99,C01,DOC001,,Normal,
+P007,2023-10-04,Anemia,Hemoglobin Test,Low,0,2023-10-04,Iron-Folate Tabs,1,150,3,ZoneC,55,7500,98,C03,DOC003,,Negative,
+P002,2023-10-05,Malaria,Microscopy-Malaria,Positive,1,2023-10-04,ACT Tablets,0,48,1,ZoneB,72,6100,97,C02,DOC002,Patient recovering,Negative,
+P008,2023-10-05,HIV-Positive,HIV-ViralLoad,2500,7,2023-09-28,ARV-Regimen B,1,73,0.5,ZoneA,92,4200,96,C01,DOC001,Initiate adherence counseling,Positive,2500
+P009,2023-10-06,Dengue,NS1 Antigen,Positive,1,2023-10-05,,0,0,0,ZoneB,68,5300,97,C02,DOC002,,Negative,
+P010,2023-10-06,STI-Gonorrhea,NAAT-GC,Positive,3,2023-10-03,Ceftriaxone Inj,1,20,0.1,ZoneC,78,4900,96,C03,DOC003,,Negative,
+P001,2023-10-07,TB,Follow-up,N/A,0,2023-10-07,TB-Regimen A,0,96,2,ZoneA,80,3700,97,C01,DOC001,,Negative,
+P011,2023-10-08,Healthy Checkup,,,0,,,0,0,ZoneA,15,10500,99,C01,DOC001,,Positive,
+P012,2023-10-09,Malaria,RDT-Malaria,Negative,0,2023-10-09,ACT Tablets,0,46,1,ZoneB,40,7800,98,C02,DOC002,,Negative,
+P003,2023-10-10,HIV-Positive,CD4 Count,350,4,2023-10-06,ARV-Regimen B,0,72,0.5,ZoneA,50,8000,99,C01,DOC001,Switched from checkup to positive,Positive,350
+P013,2023-10-11,Pneumonia,Sputum Culture,Pending,0,2023-10-11,Amoxicillin Syrup,0,190,5,ZoneC,66,4600,95,C03,DOC003,,Negative,
+P005,2023-10-12,STI-Syphilis,Follow-up,N/A,0,2023-10-12,Penicillin G,0,28,0.2,ZoneB,60,6000,98,C02,DOC002,,Negative,
+P014,2023-10-13,TB,Sputum-AFB,Negative,2,2023-10-11,TB-Regimen B,1,80,1,ZoneA,35,5500,98,C01,DOC001,,Negative,
+P015,2023-10-14,Malaria,RDT-Malaria,Positive,0,2023-10-14,ACT Tablets,1,44,1,ZoneB,73,6300,97,C02,DOC002,,Negative,
+P008,2023-10-15,HIV-Positive,Follow-up,N/A,0,2023-10-15,ARV-Regimen B,0,70,0.5,ZoneA,90,4100,96,C01,DOC001,Adherence improving,Positive,1200
+P001,2023-10-16,TB,Sputum-GeneXpert,Positive,2,2023-10-14,TB-Regimen A,0,94,2,ZoneA,86,3300,96,C01,DOC001,,Negative,
+P007,2023-10-17,Anemia,Follow-up,N/A,0,2023-10-17,Iron-Folate Tabs,0,140,3,ZoneC,50,7800,99,C03,DOC003,,Negative,
+P010,2023-10-18,STI-Gonorrhea,Test of Cure,Negative,3,2023-10-15,Ceftriaxone Inj,0,18,0.1,ZoneC,45,5200,98,C03,DOC003,,Negative,
+P016,2023-10-19,Healthy Checkup,BP Check,Normal,0,2023-10-19,,0,0,0,ZoneA,20,9500,99,C01,DOC001,,Negative,
+P017,2023-10-20,TB,Sputum-AFB,Positive,3,2023-10-17,TB-Regimen A,1,92,2,ZoneB,82,3900,97,C02,DOC002,New case from Zone B,Negative,
+P018,2023-10-21,Malaria,RDT-Malaria,Negative,0,2023-10-21,,0,0,0,ZoneC,30,7200,98,C03,DOC003,,Negative,
+P019,2023-10-22,HIV-Positive,HIV-Rapid,Positive,0,2023-10-22,ARV-Regimen C,1,60,0.3,ZoneA,95,4000,95,C01,DOC001,Newly diagnosed,Positive,
+P020,2023-10-23,Pneumonia,Chest X-Ray,Improving,1,2023-10-22,Amoxicillin Syrup,0,180,5,ZoneB,55,5000,97,C02,DOC002,,Negative,
+P001,2023-10-24,TB,Follow-up,N/A,0,2023-10-24,TB-Regimen A,0,90,2,ZoneA,78,3800,97,C01,DOC001,,Negative,
+P005,2023-10-25,STI-Syphilis,RPR,Non-Reactive,1,2023-10-24,Penicillin G,0,27,0.2,ZoneB,30,6500,99,C02,DOC002,Treatment successful,Negative,
+P021,2023-10-26,Dengue,IgM Test,Positive,2,2023-10-24,,0,0,0,ZoneC,70,5100,96,C03,DOC003,,Negative,
+P015,2023-10-27,Malaria,Microscopy-Malaria,Positive,1,2023-10-26,ACT Tablets,0,40,1,ZoneB,75,6250,97,C02,DOC002,,Negative,
+P008,2023-10-28,HIV-Positive,Viral Load,800,7,2023-10-21,ARV-Regimen B,0,68,0.5,ZoneA,85,4300,97,C01,DOC001,Viral load decreasing,Positive,800
+P014,2023-10-29,TB,Follow-up,N/A,0,2023-10-29,TB-Regimen B,0,78,1,ZoneA,30,5800,99,C01,DOC001,,Negative,
+P022,2023-10-30,Anemia,Hemoglobin Test,Normal,0,2023-10-30,Iron-Folate Tabs,0,130,3,ZoneC,33,8200,99,C03,DOC003,,Negative,
+P017,2023-10-31,TB,Follow-up,N/A,0,2023-10-31,TB-Regimen A,0,88,2,ZoneB,70,4200,98,C02,DOC002,,Negative,
+P023,2023-11-01,Healthy Checkup,Glucose Test,Pending,0,2023-11-01,,0,0,0,ZoneA,22,8900,98,C01,DOC001,,Negative,
+P002,2023-11-01,Malaria,RDT-Malaria,Negative,0,2023-11-01,ACT Tablets,0,38,1,ZoneB,35,6700,99,C02,DOC002,Cleared,Negative,
+P020,2023-11-02,Pneumonia,Follow-up,N/A,0,2023-11-02,Amoxicillin Syrup,0,175,5,ZoneB,40,5500,98,C02,DOC002,,Negative,
