@@ -2,8 +2,8 @@
 import streamlit as st
 import os
 import pandas as pd # Keep for app_config if it uses pd, e.g. Timestamp
-from config import app_config
-import logging
+from config import app_config # Import the enhanced config
+import logging # Ensure logging is imported if not already via app_config
 
 # --- Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(
@@ -29,14 +29,13 @@ st.set_page_config(
 )
 
 # --- Logging Setup ---
-# Centralized logging configuration from app_config
 logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging.INFO),
                     format=app_config.LOG_FORMAT,
-                    datefmt=app_config.LOG_DATE_FORMAT) # Added date format for logs
-logger = logging.getLogger(__name__) # Logger for this specific file
+                    datefmt=app_config.LOG_DATE_FORMAT) 
+logger = logging.getLogger(__name__) 
 
 # --- Function to load CSS ---
-@st.cache_resource # Cache CSS loading as it's unlikely to change during a session
+@st.cache_resource 
 def load_css(css_file_path):
     if os.path.exists(css_file_path):
         with open(css_file_path) as f:
@@ -45,23 +44,22 @@ def load_css(css_file_path):
     else:
         logger.warning(f"CSS file not found at {css_file_path}. Styling may be affected. Default styles will be used.")
 
-# Load custom CSS from configured path
-load_css(app_config.STYLE_CSS)
+load_css(app_config.STYLE_CSS_PATH) # Use STYLE_CSS_PATH from config
 
 
 # --- App Header ---
-header_cols = st.columns([0.08, 0.92]) # Ratio for logo vs title (adjust as needed)
+header_cols = st.columns([0.08, 0.92]) 
 with header_cols[0]:
     if os.path.exists(app_config.APP_LOGO):
-        st.image(app_config.APP_LOGO, width=70) # Adjust width as desired
+        st.image(app_config.APP_LOGO, width=70) 
     else:
-        st.markdown("❤️", unsafe_allow_html=True) # Fallback simple emoji if logo.png is missing
+        st.markdown("❤️", unsafe_allow_html=True)
 
 with header_cols[1]:
     st.title(app_config.APP_TITLE)
     st.caption(f"Version {app_config.APP_VERSION}  |  Empowering Health Decisions with Data-Driven Insights")
 
-st.markdown("---") # Visual separator
+st.markdown("---") 
 
 # --- App Introduction ---
 st.markdown(
@@ -77,14 +75,13 @@ st.success("👈 **Please select a specialized dashboard from the sidebar naviga
 
 st.subheader("Explore Role-Specific Dashboards:")
 
-# Use expanders for a cleaner look and feel for dashboard descriptions
 with st.expander("🧑‍⚕️ **Community Health Worker (CHW) Dashboard** - Daily field operations and patient prioritization.", expanded=False):
     st.markdown("""
     - **Focus:** Field-level insights, patient tracking, alert prioritization, and efficient task management for proactive community care.
     - **Key Features:** Daily task lists, high-risk patient identification, wellness monitoring (SpO2, fever, activity levels), and referral tracking.
     - **Objective:** Equip CHWs with timely, actionable information to deliver targeted interventions and improve patient outcomes at the household level.
     """)
-    if st.button("Go to CHW Dashboard", key="nav_chw_home_button", type="primary"):
+    if st.button("Go to CHW Dashboard", key="nav_chw_home_button_final", type="primary"): # Incremented key
         st.switch_page("pages/1_chw_dashboard.py")
 
 
@@ -94,7 +91,7 @@ with st.expander("🏥 **Clinic Operations Dashboard** - Facility-level performa
     - **Key Features:** Test positivity rates, turnaround times, critical drug stock levels, patient load analysis, and clinic environmental health monitoring.
     - **Objective:** Enable clinic managers to optimize resource utilization, enhance service delivery quality, and ensure patient safety and satisfaction.
     """)
-    if st.button("Go to Clinic Dashboard", key="nav_clinic_home_button", type="primary"):
+    if st.button("Go to Clinic Dashboard", key="nav_clinic_home_button_final", type="primary"):
         st.switch_page("pages/2_clinic_dashboard.py")
 
 with st.expander("🗺️ **District Health Officer (DHO) Dashboard** - Strategic population health oversight.", expanded=False):
@@ -103,7 +100,7 @@ with st.expander("🗺️ **District Health Officer (DHO) Dashboard** - Strategi
     - **Key Features:** Geospatial mapping of health indicators, zonal comparisons, burden of disease analysis, and data-driven tools for intervention planning.
     - **Objective:** Provide DHOs with a comprehensive strategic overview to guide public health policy, optimize resource deployment, and lead targeted health initiatives.
     """)
-    if st.button("Go to District Dashboard", key="nav_dho_home_button", type="primary"):
+    if st.button("Go to District Dashboard", key="nav_dho_home_button_final", type="primary"):
         st.switch_page("pages/3_district_dashboard.py")
 
 
@@ -130,12 +127,10 @@ with capabilities_cols[2]:
 
 
 # --- Sidebar Content Customization ---
-# Streamlit automatically creates navigation from files in 'pages/' directory.
-# Custom content for the sidebar can be added here:
-st.sidebar.markdown("---") # Visual separator in sidebar
+st.sidebar.markdown("---") 
 if os.path.exists(app_config.APP_LOGO):
-    st.sidebar.image(app_config.APP_LOGO, width=60, use_column_width='auto') # Smaller logo in sidebar
-st.sidebar.header(f"{app_config.APP_TITLE.split(' ')[0]} Hub") # A shorter title for the sidebar, e.g., "Community Hub"
+    st.sidebar.image(app_config.APP_LOGO, width=60, use_column_width='auto') 
+st.sidebar.header(f"{app_config.APP_TITLE.split(' ')[0]} Hub") 
 st.sidebar.caption(f"Version {app_config.APP_VERSION}")
 st.sidebar.markdown("---")
 st.sidebar.caption(app_config.APP_FOOTER)
