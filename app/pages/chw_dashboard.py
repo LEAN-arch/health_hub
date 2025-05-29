@@ -50,9 +50,9 @@ try:
     alert_df = pd.DataFrame(mock_data['alerts'])
     if not alert_df.empty:
         st.plotly_chart(plot_treemap(
-            alert_df["id"],
-            alert_df["priority_score"],
-            alert_df["type"],
+            alert_df["id"].tolist(),  # Convert Series to list
+            alert_df["priority_score"].tolist(),  # Convert Series to list
+            alert_df["type"].tolist(),  # Convert Series to list
             "Alert Prioritization by Type"
         ), use_container_width=True)
     else:
