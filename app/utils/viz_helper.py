@@ -19,6 +19,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
     
     fig = go.Figure()
     
+    # Main data trace
     fig.add_trace(go.Scatter(
         x=labels,
         y=data,
@@ -28,16 +29,19 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         name=title
     ))
     
+    # Confidence interval trace
     if ci_lower and ci_upper and len(ci_lower) == len(ci_upper) == len(labels):
         fig.add_trace(go.Scatter(
             x=labels + labels[::-1],
             y=ci_upper + ci_lower[::-1],
             fill="toself",
-            fillcolor=f"rgba(150, 150, 150, 0.2)",  # Simplified fillcolor
-            line=dict(color="transparent"),
-            name="CI"
+            fillcolor=f"rgba(150, 150, 150, 0.2)",  # Gray with opacity
+            line=dict(width=0),  # No visible line
+            name="CI",
+            showlegend=True
         ))
     
+    # Target line
     if target_line is not None:
         fig.add_hline(
             y=target_line,
@@ -48,6 +52,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
             annotation_font_color="red"
         )
     
+    # Anomaly annotations
     try:
         anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
         for idx in anomalies:
