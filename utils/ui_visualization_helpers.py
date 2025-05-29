@@ -6,10 +6,9 @@ import numpy as np
 import pandas as pd
 import logging
 import plotly.io as pio
-from config import app_config # For default plot heights, etc.
-import html # <<<<<<<<<<<< ADD THIS IMPORT
+from config import app_config 
+import html 
 
-# ... (set_custom_plotly_theme and other imports remain the same) ...
 # Configure logging
 logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging.INFO),
                     format=app_config.LOG_FORMAT)
@@ -17,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 # --- Global Plotly Theme ---
 def set_custom_plotly_theme():
-    # (This function remains identical to the one in your "Ultimate Dashboard" ui_visualization_helpers.py)
-    # ... (ensure it's defined here as provided previously) ...
     custom_theme = go.layout.Template()
     custom_theme.layout.font = dict(family='-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', size=12, color="#374151")
     custom_theme.layout.paper_bgcolor = "#FFFFFF"
@@ -26,50 +23,38 @@ def set_custom_plotly_theme():
     custom_theme.layout.colorway = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#8B5CF6']
     custom_theme.layout.xaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True)
     custom_theme.layout.yaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True)
-    custom_theme.layout.title = dict(font_size=16, font_weight='bold', x=0.02, xanchor='left', y=0.95, yanchor='top') # Make titles slightly more prominent
+    custom_theme.layout.title = dict(font_size=16, font_weight='bold', x=0.02, xanchor='left', y=0.95, yanchor='top')
     custom_theme.layout.legend = dict(bgcolor='rgba(255,255,255,0.8)', bordercolor='#E5E7EB', orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
-    custom_theme.layout.margin = dict(l=60, r=40, t=70, b=60) # Adjusted margins
+    custom_theme.layout.margin = dict(l=60, r=40, t=70, b=60)
 
     pio.templates["custom_health_theme"] = custom_theme
-    pio.templates.default = "plotly+custom_health_theme" # Apply globally
+    pio.templates.default = "plotly+custom_health_theme"
     logger.info("Custom Plotly theme 'custom_health_theme' set as default.")
 
-set_custom_plotly_theme() # Apply theme when module is imported
-
+set_custom_plotly_theme()
 
 # --- Styled Components (HTML/CSS via st.markdown) ---
 
 def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None):
-    """
-    Render a styled KPI card using CSS classes defined in style.css.
-    delta: string like "+5%" or "-2 days"
-    delta_type: "positive", "negative", "neutral"
-    """
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}
     status_final_class = status_class_map.get(status, "")
 
     delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(str(delta))}</p>' if delta else ""
-    
-    # Use html.escape for the title attribute content
     tooltip_html = f'title="{html.escape(str(help_text))}"' if help_text else ''
 
-    # For content displayed directly in HTML (not attributes), st.markdown itself handles some escaping,
-    # but being explicit with html.escape for values going into attributes is safer.
-    # For values displayed as text content, usually direct insertion is fine,
-    # or if you construct complex HTML, use html.escape for user-provided parts.
-
+    # Ensure no trailing characters or newlines after the final </div>
     html_content = f"""
-    <div class="kpi-card {status_final_class}" {tooltip_html}>
-        <div class="kpi-card-header">
-            <span class="kpi-icon">{icon}</span> 
-            <h3 class="kpi-title">{html.escape(str(title))}</h3>
-        </div>
-        <div>
-            <p class="kpi-value">{html.escape(str(value))}</p>
-            {delta_html}
-        </div>
+<div class="kpi-card {status_final_class}" {tooltip_html}>
+    <div class="kpi-card-header">
+        <span class="kpi-icon">{icon}</span>
+        <h3 class="kpi-title">{html.escape(str(title))}</h3>
     </div>
-    """
+    <div>
+        <p class="kpi-value">{html.escape(str(value))}</p>
+        {delta_html}
+    </div>
+</div>""".strip() # <<<<<<<<<<<< Added .strip() here
+
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_traffic_light(message, status, details=""):
@@ -78,16 +63,18 @@ def render_traffic_light(message, status, details=""):
     
     details_html = f'<span class="traffic-light-details">{html.escape(str(details))}</span>' if details else ""
 
+    # Ensure no trailing characters or newlines after the final </div>
     html_content = f"""
-    <div class="traffic-light-indicator">
-        <span class="traffic-light-dot {dot_status_class}"></span>
-        <span class="traffic-light-message">{html.escape(str(message))}</span>
-        {details_html}
-    </div>
-    """
+<div class="traffic-light-indicator">
+    <span class="traffic-light-dot {dot_status_class}"></span>
+    <span class="traffic-light-message">{html.escape(str(message))}</span>
+    {details_html}
+</div>""".strip() # <<<<<<<<<<<< Added .strip() here
+
     st.markdown(html_content, unsafe_allow_html=True)
 
 # ... (rest of your ui_visualization_helpers.py plotting functions) ...
+# (Plotting functions from previous complete file should follow here)
 # --- Plotting Functions ---
 def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=None,
                               target_line=None, target_label=None, show_ci=False,
@@ -104,19 +91,17 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
         return fig
 
     fig = go.Figure()
-    # Use a color from the theme's colorway if not specified
     line_color = color if color else pio.templates[pio.templates.default].layout.colorway[0]
 
     fig.add_trace(go.Scatter(
         x=data_series.index, y=data_series.values, mode="lines+markers", name=y_axis_title,
         line=dict(color=line_color, width=2.5), marker=dict(size=6, symbol='circle-open'),
-        hoverinfo='x+y', customdata=[y_axis_title]*len(data_series), # For unified hover
+        hoverinfo='x+y', customdata=[y_axis_title]*len(data_series), 
         hovertemplate='<b>Date</b>: %{x}<br><b>'+y_axis_title+'</b>: %{y}<extra></extra>'
     ))
 
     if show_ci and lower_bound_series is not None and upper_bound_series is not None and \
        not lower_bound_series.empty and not upper_bound_series.empty:
-        # Ensure indices align
         common_index = data_series.index.intersection(lower_bound_series.index).intersection(upper_bound_series.index)
         if not common_index.empty:
             ls = lower_bound_series.reindex(common_index)
@@ -131,19 +116,17 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
 
     if target_line is not None:
         fig.add_hline(
-            y=target_line, line_dash="dash", line_color="#EF4444", # Red-500
+            y=target_line, line_dash="dash", line_color="#EF4444",
             annotation_text=target_label if target_label else f"Target: {target_line}",
             annotation_position="bottom right", annotation_font_size=10, annotation_font_color="#EF4444"
         )
 
-    if show_anomalies and len(data_series) > 5: # Basic anomaly detection (example)
+    if show_anomalies and len(data_series) > 5: 
         q95 = data_series.quantile(0.95)
         q05 = data_series.quantile(0.05)
-        # Consider std dev based anomalies too: mean +/- 2*std
         std_dev = data_series.std()
         mean_val = data_series.mean()
-        # Ensure std_dev is not NaN (can happen with all same values or too few values)
-        if pd.notna(std_dev) and pd.notna(mean_val):
+        if pd.notna(std_dev) and pd.notna(mean_val) and std_dev > 1e-6: # Check std_dev is not zero or too small
             upper_anomaly_thresh = max(q95, mean_val + 2*std_dev)
             lower_anomaly_thresh = min(q05, mean_val - 2*std_dev)
 
@@ -151,13 +134,12 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
             if not anomalies.empty:
                 fig.add_trace(go.Scatter(
                     x=anomalies.index, y=anomalies.values, mode='markers',
-                    marker=dict(color='#D90429', size=10, symbol='x-thin-open', line=dict(width=2)), # More visible anomaly marker
+                    marker=dict(color='#D90429', size=10, symbol='x-thin-open', line=dict(width=2)),
                     name='Potential Anomaly', hoverinfo='x+y+text',
                     text=[f"Anomaly ({val:.2f})" for val in anomalies.values]
                 ))
         else:
-            logger.debug(f"Could not calculate std_dev/mean for anomaly detection in '{title}'. Skipping.")
-
+            logger.debug(f"Could not calculate std_dev/mean for anomaly detection in '{title}' or std_dev too small. Skipping.")
 
     fig.update_layout(
         title_text=title,
@@ -183,12 +165,12 @@ def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
     y_axis_title_final = y_axis_title if y_axis_title else y_col.replace('_', ' ').title()
     x_axis_title_final = x_axis_title if x_axis_title else x_col.replace('_', ' ').title()
 
-    df_to_plot = df.copy() # Work with a copy
+    df_to_plot = df.copy() 
 
     if sort_values_by and sort_values_by in df_to_plot.columns:
         try:
             df_to_plot.sort_values(by=sort_values_by, ascending=ascending, inplace=True)
-        except Exception as e_sort:
+        except Exception as e_sort: # pragma: no cover
             logger.warning(f"Could not sort bar chart '{title}' by '{sort_values_by}': {e_sort}. Proceeding unsorted.")
     
     fig = px.bar(df_to_plot, x=x_col, y=y_col, title=title, color=color_col,
@@ -226,31 +208,30 @@ def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
 def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 70
     
-    if not isinstance(matrix_df, pd.DataFrame) or matrix_df.empty:
+    if not isinstance(matrix_df, pd.DataFrame) or matrix_df.empty: # pragma: no cover
         logger.error(f"Invalid input for heatmap: {title}. Must be a non-empty DataFrame.")
         return go.Figure().update_layout(title_text=f"{title} (No data or invalid data)", height=height,
                                           annotations=[dict(text="Invalid data for Heatmap", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
     
     try:
-        # Check if all columns can be converted to numeric without losing data
         is_all_numeric_convertible = True
         numeric_matrix_df_test = matrix_df.copy()
         for col in numeric_matrix_df_test.columns:
             original_non_na = matrix_df[col].dropna()
             converted_col = pd.to_numeric(matrix_df[col], errors='coerce')
             converted_non_na = converted_col.dropna()
-            if len(original_non_na) != len(converted_non_na): # If to_numeric created more NaNs from non-NaNs
+            if len(original_non_na) != len(converted_non_na):
                 is_all_numeric_convertible = False
                 break
         
-        if not is_all_numeric_convertible:
+        if not is_all_numeric_convertible: # pragma: no cover
              logger.error(f"Matrix for heatmap '{title}' contains non-numeric values that cannot be reliably converted.")
              return go.Figure().update_layout(title_text=f"{title} (Contains non-convertible non-numeric data)", height=height,
                                               annotations=[dict(text="Non-numeric data in Heatmap", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
         
-        numeric_matrix_df = matrix_df.apply(pd.to_numeric, errors='coerce').fillna(0) # Fill any remaining NaNs with 0 after check
+        numeric_matrix_df = matrix_df.apply(pd.to_numeric, errors='coerce').fillna(0)
 
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         logger.error(f"Error converting matrix to numeric for heatmap '{title}': {e}", exc_info=True)
         return go.Figure().update_layout(title_text=f"{title} (Data processing error for heatmap)", height=height,
                                           annotations=[dict(text="Error processing Heatmap data", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
@@ -277,17 +258,17 @@ def plot_layered_choropleth_map(gdf, value_col, title,
     height = height if height is not None else app_config.MAP_PLOT_HEIGHT
     zoom = zoom_level if zoom_level is not None else app_config.MAP_DEFAULT_ZOOM
 
-    if gdf is None or gdf.empty or value_col not in gdf.columns or id_col not in gdf.columns:
+    if gdf is None or gdf.empty or value_col not in gdf.columns or id_col not in gdf.columns: # pragma: no cover
         logger.warning(f"Invalid GeoDataFrame or missing columns for choropleth map: {title}")
         return go.Figure().update_layout(title_text=f"{title} (No geographic data or required metric missing)", height=height,
                                           annotations=[dict(text="Map data unavailable", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
 
-    gdf_plot = gdf.copy() # Work on a copy
+    gdf_plot = gdf.copy() 
     if not pd.api.types.is_numeric_dtype(gdf_plot[value_col]):
         logger.info(f"Value column '{value_col}' for choropleth map '{title}' is not numeric. Attempting conversion.")
         gdf_plot[value_col] = pd.to_numeric(gdf_plot[value_col], errors='coerce')
         gdf_plot.dropna(subset=[value_col], inplace=True) 
-        if gdf_plot.empty:
+        if gdf_plot.empty: # pragma: no cover
             logger.warning(f"No valid numeric data left in '{value_col}' after conversion for map '{title}'.")
             return go.Figure().update_layout(title_text=f"{title} (No valid numeric data for selected metric)", height=height,
                                               annotations=[dict(text="Map data conversion issue", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
@@ -316,29 +297,27 @@ def plot_layered_choropleth_map(gdf, value_col, title,
                     size=size_data, sizemin=4, color='#1E3A8A', opacity=0.9, allowoverlap=True),
                 text=hover_text_data, hoverinfo='text', name='Health Facilities'
             ))
-        else: logger.warning("Facility GDF provided but contains no Point geometries for map layer.")
+        else: logger.warning("Facility GDF provided but contains no Point geometries for map layer.") # pragma: no cover
     
-    # Auto-calculate center and zoom
     final_center_lat, final_center_lon, final_zoom = center_lat, center_lon, zoom
     if (final_center_lat is None or final_center_lon is None) and not gdf_plot.empty:
         valid_geoms_gdf = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
-        if not valid_geoms_gdf.empty:
+        if not valid_geoms_gdf.empty: # pragma: no cover
             try:
                 bounds = valid_geoms_gdf.total_bounds
                 if not np.isinf(bounds).any() and not np.isnan(bounds).any():
                     final_center_lon = (bounds[0] + bounds[2]) / 2
                     final_center_lat = (bounds[1] + bounds[3]) / 2
-                    # Simple zoom: if only one feature, zoom in more.
                     if len(valid_geoms_gdf) == 1: final_zoom = 10 
-                else: logger.warning(f"Invalid bounds for map '{title}'.")
-            except Exception as e_map_center:
+                else: logger.warning(f"Invalid bounds for map '{title}'.") # pragma: no cover
+            except Exception as e_map_center: # pragma: no cover
                 logger.error(f"Error calculating map center for '{title}': {e_map_center}.")
-        else: logger.warning(f"No valid geometries in GDF for map '{title}' to calculate center.")
+        else: logger.warning(f"No valid geometries in GDF for map '{title}' to calculate center.") # pragma: no cover
 
     fig.update_layout(
         title_text=title,
         mapbox_zoom=final_zoom,
-        mapbox_center={"lat": final_center_lat, "lon": final_center_lon} if final_center_lat is not None else None,
+        mapbox_center={"lat": final_center_lat, "lon": final_center_lon} if final_center_lat is not None and final_center_lon is not None else None,
         height=height, margin={"r":10,"t":50,"l":10,"b":10},
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.7)')
     )
