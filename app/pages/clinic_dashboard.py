@@ -42,12 +42,18 @@ with col4:
 
 # Test Results
 st.subheader("Test Results")
-test_df = pd.DataFrame(mock_data['test_results'])
-st.plotly_chart(plot_donut_chart(
-    test_df["status"],
-    test_df["count"],
-    "Test Result Distribution"
-), use_container_width=True)
+try:
+    test_df = pd.DataFrame(mock_data['test_results'])
+    if not test_df.empty:
+        st.plotly_chart(plot_donut_chart(
+            test_df["status"],
+            test_df["count"],
+            "Test Result Distribution"
+        ), use_container_width=True)
+    else:
+        st.warning("No test result data available.")
+except Exception as e:
+    st.error(f"Error rendering donut chart: {str(e)}")
 
 # Supply Forecast
 st.subheader("Supply Forecast")
