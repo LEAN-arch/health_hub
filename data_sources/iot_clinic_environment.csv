@@ -1,0 +1,2 @@
+timestamp,clinic_id,room_name,avg_co2_ppm,max_co2_ppm,avg_pm25,voc_index,avg_temp_celsius,avg_humidity_rh,avg_noise_db,waiting_room_occupancy,patient_throughput_per_hour,sanitizer_dispenses_per_hour
+2023-10-25 09:00:00,TJ-ZONA-RIO-C1,WaitingRoom1,850,1100,12,150,23.5,55,60,15,10,5
