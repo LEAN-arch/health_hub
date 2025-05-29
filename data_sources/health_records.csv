@@ -1,0 +1,29 @@
+date,zone_id,patient_id,age,gender,condition,chw_visit,referral_status,referral_date,test_type,test_result,test_date,test_turnaround_days,supply_item,supply_level_days,ai_risk_score,tb_contact_traced
+2023-10-01,ZN001,P001,45,Male,Hypertension,1,Pending,2023-10-01,N/A,N/A,N/A,,BP_Med_A,25,65,0
+2023-10-01,ZN002,P002,30,Female,TB,1,Completed,2023-09-28,Sputum,Positive,2023-10-01,3,TB_Drug_Kit,15,80,1
+2023-10-01,ZN001,P003,62,Female,Diabetes,0,N/A,N/A,Glucose,High,2023-10-01,0,Insulin,30,70,0
+2023-10-01,ZN003,P004,25,Male,Malaria,1,Pending,2023-10-01,RDT,Pending,2023-10-01,,ACT_Meds,20,55,0
+2023-10-02,ZN001,P001,45,Male,Hypertension,0,Pending,2023-10-01,N/A,N/A,N/A,,BP_Med_A,24,68,0
+2023-10-02,ZN002,P005,55,Male,TB,1,Initiated,2023-10-02,Sputum,Pending,2023-10-02,,TB_Drug_Kit,14,75,1
+2023-10-02,ZN004,P006,38,Female,ARI,1,N/A,N/A,N/A,N/A,N/A,,Amoxicillin,10,40,0
+2023-10-03,ZN001,P007,28,Female,Diabetes,1,Completed,2023-10-01,Glucose,Normal,2023-10-03,0,Insulin,28,50,0
+2023-10-03,ZN003,P004,25,Male,Malaria,0,Completed,2023-10-01,RDT,Positive,2023-10-03,2,ACT_Meds,18,60,0
+2023-10-04,ZN002,P002,30,Female,TB,0,Follow-up,2023-09-28,N/A,N/A,N/A,,TB_Drug_Kit,12,82,1
+2023-10-04,ZN004,P008,50,Male,Hypertension,1,Pending,2023-10-04,N/A,N/A,N/A,,BP_Med_B,18,72,0
+2023-10-05,ZN001,P001,45,Male,Hypertension,1,Completed,2023-10-01,N/A,N/A,N/A,,BP_Med_A,22,60,0
+2023-10-05,ZN003,P009,67,Female,ARI,1,Pending,2023-10-05,N/A,N/A,N/A,,Painkillers,22,58,0
+2023-10-06,ZN002,P005,55,Male,TB,0,Follow-up,2023-10-02,Sputum,Positive,2023-10-06,4,TB_Drug_Kit,10,78,1
+2023-10-06,ZN004,P006,38,Female,ARI,0,N/A,N/A,N/A,N/A,N/A,,Amoxicillin,7,45,0
+2023-10-07,ZN001,P010,33,Male,Diabetes,1,Initiated,2023-10-07,Glucose,High,2023-10-07,0,Insulin,26,76,0
+2023-10-07,ZN003,P004,25,Male,Malaria,1,Follow-up,2023-10-01,N/A,N/A,N/A,,ACT_Meds,16,55,0
+2023-10-08,ZN001,P011,58,Male,Hypertension,1,Pending,2023-10-08,N/A,N/A,N/A,,BP_Med_C,20,70,0
+2023-10-08,ZN002,P012,42,Female,ARI,1,Completed,2023-10-07,N/A,N/A,N/A,,CoughSyrup,12,50,0
+2023-10-08,ZN004,P008,50,Male,Hypertension,0,Follow-up,2023-10-04,N/A,N/A,N/A,,BP_Med_B,15,74,0
+2023-10-09,ZN001,P003,62,Female,Diabetes,1,Follow-up,N/A,Glucose,Slightly High,2023-10-09,0,Insulin,27,72,0
+2023-10-09,ZN003,P013,35,Female,TB,1,Initiated,2023-10-09,Sputum,Pending,2023-10-09,,TB_Drug_Kit,18,85,0
+2023-10-10,ZN002,P002,30,Female,TB,1,Completed,2023-09-28,Chest X-ray,Improving,2023-10-10,0,TB_Drug_Kit,9,75,1
+2023-10-10,ZN004,P014,22,Male,Malaria,1,Pending,2023-10-10,RDT,Pending,2023-10-10,,ACT_Meds,22,62,0
+2023-10-11,ZN001,P007,28,Female,Diabetes,0,N/A,N/A,N/A,N/A,N/A,,Insulin,25,52,0
+2023-10-11,ZN003,P009,67,Female,ARI,0,Completed,2023-10-05,N/A,N/A,N/A,,Painkillers,19,55,0
+2023-10-12,ZN002,P005,55,Male,TB,1,Follow-up,2023-10-02,Sputum,Negative,2023-10-12,6,TB_Drug_Kit,7,70,1
+2023-10-12,ZN004,P006,38,Female,ARI,1,Pending,2023-10-12,N/A,N/A,N/A,,Amoxicillin,5,48,0
