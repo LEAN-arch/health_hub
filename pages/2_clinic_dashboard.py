@@ -69,26 +69,29 @@ st.markdown("---")
 # --- Sidebar Filters & Date Range Setup ---
 st.sidebar.header("🗓️ Clinic Filters")
 
-all_clinic_timestamps_raw = []
+all_valid_timestamps = []
+
 if 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
-    s_health_dates = pd.to_datetime(health_df_clinic_main['date'], errors='coerce')
-    valid_health_timestamps = s_health_dates.dropna()
-    if not valid_health_timestamps.empty:
-        all_clinic_timestamps_raw.extend(valid_health_timestamps.tolist())
+    if pd.api.types.is_list_like(health_df_clinic_main['date']): # Check if it's list-like before making a Series
+        s_health_dates = pd.to_datetime(pd.Series(health_df_clinic_main['date']), errors='coerce')
+        valid_health_timestamps = s_health_dates.dropna()
+        if not valid_health_timestamps.empty:
+            all_valid_timestamps.extend(valid_health_timestamps.tolist())
 
 if 'timestamp' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
-    s_iot_timestamps = pd.to_datetime(iot_df_clinic_main['timestamp'], errors='coerce')
-    valid_iot_timestamps = s_iot_timestamps.dropna()
-    if not valid_iot_timestamps.empty:
-        all_clinic_timestamps_raw.extend(valid_iot_timestamps.tolist())
+    if pd.api.types.is_list_like(iot_df_clinic_main['timestamp']):
+        s_iot_timestamps = pd.to_datetime(pd.Series(iot_df_clinic_main['timestamp']), errors='coerce')
+        valid_iot_timestamps = s_iot_timestamps.dropna()
+        if not valid_iot_timestamps.empty:
+            all_valid_timestamps.extend(valid_iot_timestamps.tolist())
 
-if not all_clinic_timestamps_raw:
+if not all_valid_timestamps:
     min_date_data_clinic = pd.Timestamp('today').date() - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND * 3)
     max_date_data_clinic = pd.Timestamp('today').date()
     logger.warning("Clinic Dashboard: No valid dates found in any dataset for filter range. Using wide fallback.")
 else:
-    min_date_ts = min(all_clinic_timestamps_raw) 
-    max_date_ts = max(all_clinic_timestamps_raw) 
+    min_date_ts = min(all_valid_timestamps)
+    max_date_ts = max(all_valid_timestamps)
     min_date_data_clinic = min_date_ts.date()
     max_date_data_clinic = max_date_ts.date()
 
@@ -101,21 +104,27 @@ selected_start_date_cl, selected_end_date_cl = st.sidebar.date_input(
     value=[default_start_date_clinic, max_date_data_clinic],
     min_value=min_date_data_clinic,
     max_value=max_date_data_clinic,
-    key="clinic_dashboard_date_range_selector_v3_final", # Incremented key
+    key="clinic_dashboard_date_range_selector_v5_final", # Incremented key
     help="This date range applies to most charts and Key Performance Indicators (KPIs) unless specified otherwise."
 )
 
 # --- Filter dataframes based on selected date range ---
 filtered_health_df_clinic = pd.DataFrame(columns=health_df_clinic_main.columns)
 if selected_start_date_cl and selected_end_date_cl and 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
+    # Ensure 'date' column is datetime64[ns] before attempting .dt accessor
     if not pd.api.types.is_datetime64_ns_dtype(health_df_clinic_main['date']):
-         health_df_clinic_main['date'] = pd.to_datetime(health_df_clinic_main['date'], errors='coerce') # Ensure it's datetime64[ns]
+         health_df_clinic_main['date'] = pd.to_datetime(health_df_clinic_main['date'], errors='coerce')
     
-    # Create 'date_obj' for comparison only if 'date' column is valid datetime
-    if pd.api.types.is_datetime64_ns_dtype(health_df_clinic_main['date']):
-        health_df_clinic_main['date_obj'] = health_df_clinic_main['date'].dt.date
-        date_mask_health = (health_df_clinic_main['date_obj'] >= selected_start_date_cl) & (health_df_clinic_main['date_obj'] <= selected_end_date_cl) & (health_df_clinic_main['date_obj'].notna())
-        filtered_health_df_clinic = health_df_clinic_main[date_mask_health].copy()
+    # Create 'date_obj' for comparison if 'date' is valid datetime and 'date_obj' doesn't exist or needs refresh
+    if pd.api.types.is_datetime64_ns_dtype(health_df_clinic_main['date']): # Re-check after potential conversion
+        # Only create/recreate 'date_obj' if it's not there or to ensure it's fresh
+        if 'date_obj' not in health_df_clinic_main.columns or not hasattr(health_df_clinic_main['date_obj'].iloc[0] if not health_df_clinic_main.empty else None, 'year'):
+            health_df_clinic_main['date_obj'] = health_df_clinic_main['date'].dt.date 
+        
+        # Now filter using 'date_obj', ensuring it's not NaT
+        valid_date_obj_mask = health_df_clinic_main['date_obj'].notna()
+        date_range_mask = (health_df_clinic_main['date_obj'] >= selected_start_date_cl) & (health_df_clinic_main['date_obj'] <= selected_end_date_cl)
+        filtered_health_df_clinic = health_df_clinic_main[valid_date_obj_mask & date_range_mask].copy()
 
 
 filtered_iot_df_clinic = pd.DataFrame(columns=iot_df_clinic_main.columns)
@@ -124,9 +133,12 @@ if selected_start_date_cl and selected_end_date_cl and 'timestamp' in iot_df_cli
         iot_df_clinic_main['timestamp'] = pd.to_datetime(iot_df_clinic_main['timestamp'], errors='coerce')
     
     if pd.api.types.is_datetime64_ns_dtype(iot_df_clinic_main['timestamp']):
-        iot_df_clinic_main['date_obj'] = iot_df_clinic_main['timestamp'].dt.date
-        date_mask_iot = (iot_df_clinic_main['date_obj'] >= selected_start_date_cl) & (iot_df_clinic_main['date_obj'] <= selected_end_date_cl) & (iot_df_clinic_main['date_obj'].notna())
-        filtered_iot_df_clinic = iot_df_clinic_main[date_mask_iot].copy()
+        if 'date_obj' not in iot_df_clinic_main.columns or not hasattr(iot_df_clinic_main['date_obj'].iloc[0] if not iot_df_clinic_main.empty else None, 'year'):
+             iot_df_clinic_main['date_obj'] = iot_df_clinic_main['timestamp'].dt.date
+        
+        valid_date_obj_mask_iot = iot_df_clinic_main['date_obj'].notna()
+        date_range_mask_iot = (iot_df_clinic_main['date_obj'] >= selected_start_date_cl) & (iot_df_clinic_main['date_obj'] <= selected_end_date_cl)
+        filtered_iot_df_clinic = iot_df_clinic_main[valid_date_obj_mask_iot & date_range_mask_iot].copy()
 
 
 # --- Display KPIs ---
@@ -219,10 +231,10 @@ with tab_tests:
 
         with col_test_tat_trend:
             st.markdown("###### **Daily Average Test Turnaround Time (TAT)**")
-            if 'test_turnaround_days' in filtered_health_df_clinic.columns and 'date' in filtered_health_df_clinic.columns: # 'date' is used as the record/result date
+            if 'test_turnaround_days' in filtered_health_df_clinic.columns and 'date' in filtered_health_df_clinic.columns: 
                 tat_trend_data_src = filtered_health_df_clinic[
                     filtered_health_df_clinic['test_turnaround_days'].notna() &
-                    (~filtered_health_df_clinic['test_result'].isin(['Pending', 'N/A', 'Unknown'])) # Conclusive tests
+                    (~filtered_health_df_clinic['test_result'].isin(['Pending', 'N/A', 'Unknown']))
                 ].copy()
                 if not tat_trend_data_src.empty:
                     daily_avg_tat_trend = get_trend_data(tat_trend_data_src,'test_turnaround_days', period='D', date_col='date', agg_func='mean')
@@ -257,7 +269,7 @@ with tab_supplies:
             else:
                 selected_drug_for_forecast = st.selectbox(
                     "Select Key Drug for Forecast Details:", key_drug_items_for_select,
-                    key="clinic_supply_item_forecast_selector_final",
+                    key="clinic_supply_item_forecast_selector_final_v2", # Incremented key
                     help="View the forecasted days of supply remaining for the selected drug."
                 )
                 if selected_drug_for_forecast:
@@ -265,7 +277,7 @@ with tab_supplies:
                     if not item_specific_forecast_df.empty:
                         item_specific_forecast_df.sort_values('date', inplace=True)
                         
-                        current_day_info = item_specific_forecast_df.iloc[0] # First row is current day data
+                        current_day_info = item_specific_forecast_df.iloc[0] 
                         forecast_plot_title = (
                             f"Forecast: {selected_drug_for_forecast}<br>"
                             f"<sup_>Current Stock: {current_day_info.get('current_stock',0):.0f} units | "
@@ -344,7 +356,7 @@ with tab_patients:
                     "date": st.column_config.DateColumn("Latest Record Date", format="YYYY-MM-DD"),
                     "alert_reason": st.column_config.TextColumn("Alert Reason(s)", width="large", help="Reasons why this patient case is flagged."),
                     "priority_score": st.column_config.NumberColumn("Priority", help="Calculated alert priority (higher is more urgent).", format="%d"),
-                    "hiv_viral_load": st.column_config.NumberColumn("HIV VL", format="%.0f copies/mL", help="HIV Viral Load if applicable.")
+                    "hiv_viral_load": st.column_config.NumberColumn("HIV VL", format="%.0f copies/mL", help="HIV Viral Load if applicable.") #Changed format to %.0f
                 },
                 height=450, hide_index=True
             )
@@ -395,24 +407,26 @@ with tab_environment:
         latest_room_cols_display = ['clinic_id', 'room_name', 'timestamp', 'avg_co2_ppm', 'avg_pm25', 'avg_temp_celsius', 'avg_humidity_rh', 'avg_noise_db', 'waiting_room_occupancy']
         available_latest_cols = [col for col in latest_room_cols_display if col in filtered_iot_df_clinic.columns]
         
-        if all(c in available_latest_cols for c in ['timestamp', 'clinic_id', 'room_name']):
-            latest_room_sensor_readings = filtered_iot_df_clinic.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
-            if not latest_room_sensor_readings.empty:
-                st.dataframe(
-                    latest_room_sensor_readings[available_latest_cols].tail(15),
-                    use_container_width=True, height=380,
-                    column_config={
-                        "timestamp": st.column_config.DatetimeColumn("Last Reading At", format="YYYY-MM-DD HH:mm"),
-                        "avg_co2_ppm": st.column_config.NumberColumn("CO2 (ppm)", format="%d ppm"),
-                        "avg_pm25": st.column_config.NumberColumn("PM2.5 (µg/m³)", format="%.1f µg/m³"),
-                        "avg_temp_celsius": st.column_config.NumberColumn("Temperature (°C)", format="%.1f°C"),
-                        "avg_humidity_rh": st.column_config.NumberColumn("Humidity (%RH)", format="%d%%"),
-                        "avg_noise_db": st.column_config.NumberColumn("Noise Level (dB)", format="%d dB"),
-                        "waiting_room_occupancy": st.column_config.NumberColumn("Occupancy", format="%d persons"),
-                    },
-                    hide_index=True
-                )
-            else: st.caption("No detailed room sensor readings available for the end of the selected period after filtering.")
+        if all(c in available_latest_cols for c in ['timestamp', 'clinic_id', 'room_name']): # Ensure base columns exist
+            if not filtered_iot_df_clinic.empty: # Ensure there's data to sort/drop from
+                latest_room_sensor_readings = filtered_iot_df_clinic.sort_values('timestamp').drop_duplicates(subset=['clinic_id', 'room_name'], keep='last')
+                if not latest_room_sensor_readings.empty:
+                    st.dataframe(
+                        latest_room_sensor_readings[available_latest_cols].tail(15),
+                        use_container_width=True, height=380,
+                        column_config={
+                            "timestamp": st.column_config.DatetimeColumn("Last Reading At", format="YYYY-MM-DD HH:mm"),
+                            "avg_co2_ppm": st.column_config.NumberColumn("CO2 (ppm)", format="%d ppm"),
+                            "avg_pm25": st.column_config.NumberColumn("PM2.5 (µg/m³)", format="%.1f µg/m³"),
+                            "avg_temp_celsius": st.column_config.NumberColumn("Temperature (°C)", format="%.1f°C"),
+                            "avg_humidity_rh": st.column_config.NumberColumn("Humidity (%RH)", format="%d%%"),
+                            "avg_noise_db": st.column_config.NumberColumn("Noise Level (dB)", format="%d dB"),
+                            "waiting_room_occupancy": st.column_config.NumberColumn("Occupancy", format="%d persons"),
+                        },
+                        hide_index=True
+                    )
+                else: st.caption("No detailed room sensor readings available for the end of the selected period after filtering.")
+            else:  st.caption("IoT data for the selected period is empty. Cannot display latest room readings.")
         else:
             st.caption(f"Essential columns ('timestamp', 'clinic_id', 'room_name') missing for detailed room readings display. Available: {', '.join(available_latest_cols)}")
     else:
