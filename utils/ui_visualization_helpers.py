@@ -45,22 +45,25 @@ def set_custom_plotly_theme():
     pio.templates["custom_health_theme"] = custom_theme
     pio.templates.default = "plotly+custom_health_theme"
 set_custom_plotly_theme()
+import html # Ensure this is imported
 
-# --- Styled Components ---
-def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None, icon_is_html=False):
+def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None, icon_is_html=False): # icon_is_html is keyYou
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}
-    status_final_class = status_class_map.get(status, "")
+    status_final_class = status_class_map.get(status,'re right, the way I suggested using `<img>` tags with SVGs from "")
     
     delta_str = str(delta) if delta is not None else ""
-    delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(delta_str)}</p>' if delta else ""
+    delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(delta_str)}</p>' if delta `svgrepo.com` directly as the `icon` parameter in `render_kpi_card` (even with else ""
     
     help_text_str = str(help_text) if help_text is not None else ""
     tooltip_html = f'title="{html.escape(help_text_str)}"' if help_text else ''
 
     icon_str = str(icon) if icon is not None else ""
-    icon_display = icon_str if icon_is_html else html.escape(icon_str)
+    # THIS IS THE CR `icon_is_html=True`) can be unreliable or might not render correctly across all browsers or Streamlit'UCIAL LINE FOR HTML ICONS:
+    icon_display = icon_str if icon_is_html else html.escape(icon_str) 
 
-    title_str = str(title) if title is not None else ""
+    title_str = str(title) if title is not None elses rendering pipeline nuances if not perfectly styled or if the SVG source has issues.
+
+Streamlit's `st.markdown` has good support for standard emojis, but rendering arbitrary HTML/SVG images *inside* a custom HTML component passed to `st.markdown` can ""
     value_str = str(value) if value is not None else ""
 
     html_content = f"""
@@ -72,10 +75,11 @@ def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neu
     <div>
         <p class="kpi-value">{html.escape(value_str)}</p>
         {delta_html}
-    </div>
+    </div> sometimes be finicky with alignment and rendering if not perfectly managed.
+
+Let's go with the most robust and Stream
 </div>""".strip()
     st.markdown(html_content, unsafe_allow_html=True)
-
 def render_traffic_light(message, status, details=""):
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low", "Neutral": "status-neutral"}
     dot_status_class = status_class_map.get(status, "status-neutral")
