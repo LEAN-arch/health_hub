@@ -7,8 +7,8 @@ from utils.core_data_processing import (
     load_health_records,
     get_clinic_summary,
     get_trend_data,
-    get_supply_forecast_data, # Assuming this is enhanced
-    get_patient_alerts_for_clinic # New more specific function
+    get_supply_forecast_data, 
+    get_patient_alerts_for_clinic
 )
 from utils.ui_visualization_helpers import (
     render_kpi_card,
@@ -44,12 +44,30 @@ else:
 
     # --- Sidebar Filters ---
     st.sidebar.header("Clinic Filters")
-    min_date = health_df['date'].min().date()
-    max_date = health_df['date'].max().date()
     
+    # Ensure date column is datetime if not already
+    if not pd.api.types.is_datetime64_any_dtype(health_df['date']):
+        health_df['date'] = pd.to_datetime(health_df['date'], errors='coerce')
+        health_df.dropna(subset=['date'], inplace=True) # Drop rows where date conversion failed
+
+    if health_df.empty: # Check again after potential dropna
+        st.error("No valid date entries found in health records after conversion. Cannot proceed with date filters.")
+        st.stop()
+
+    min_date = health_df['date'].min().date() 
+    max_date = health_df['date'].max().date() 
+    
+    # Calculate default start date and ensure it's a date object
+    default_start_date_dt = pd.to_datetime(max_date) - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND - 1)
+    default_start_date = default_start_date_dt.date()
+
+    # Ensure default_start_date is not before min_date
+    if default_start_date < min_date:
+        default_start_date = min_date
+
     start_date, end_date = st.sidebar.date_input(
         "Select Date Range",
-        [max_date - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND -1), max_date],
+        [default_start_date, max_date], # <<<<<<<<<<<< CORRECTED HERE
         min_value=min_date,
         max_value=max_date,
         key="clinic_date_range_filter",
@@ -57,16 +75,28 @@ else:
     )
 
     if start_date and end_date and start_date <= end_date:
+        # Convert start_date and end_date (which are datetime.date) to datetime for comparison if 'date' column is datetime64
+        # Or ensure 'date' column is also just date for direct comparison
         filtered_df = health_df[
             (health_df['date'].dt.date >= start_date) &
             (health_df['date'].dt.date <= end_date)
         ].copy()
     else:
-        st.sidebar.error("Invalid date range. Please select a start date before or on the end date.")
-        filtered_df = health_df.copy() # Default to all data if range is invalid (or handle differently)
+        # This case should ideally not be hit if min_value/max_value and default value are correct
+        # But good to have a fallback.
+        st.sidebar.error("Invalid date range selected. Defaulting to full range or last 30 days if possible.")
+        # If start_date or end_date is None (can happen if user clears one), handle it
+        if start_date and end_date: # Both are not None
+             filtered_df = health_df[
+                (health_df['date'].dt.date >= default_start_date) &
+                (health_df['date'].dt.date <= max_date)
+            ].copy()
+        else: # One or both are None, default to something safe
+            filtered_df = health_df[health_df['date'].dt.date >= default_start_date].copy()
 
 
     # --- KPIs ---
+    # (rest of your clinic dashboard code...)
     clinic_kpis = get_clinic_summary(filtered_df)
     
     st.subheader(f"Operational Metrics ({start_date.strftime('%d %b %Y')} - {end_date.strftime('%d %b %Y')})")
@@ -104,58 +134,71 @@ else:
             test_results_summary = filtered_df.dropna(subset=['test_result']) \
                                    .groupby('test_result')['patient_id'].nunique().reset_index()
             test_results_summary.columns = ['Test Result', 'Count']
+            # Filter out 'Unknown' or 'N/A' if they are not meaningful for this chart
+            test_results_summary = test_results_summary[~test_results_summary['Test Result'].isin(['Unknown', 'N/A'])]
             if not test_results_summary.empty:
                 st.plotly_chart(plot_donut_chart(
                     test_results_summary, 'Test Result', 'Count', "Test Result Distribution"
                 ), use_container_width=True)
             else:
-                st.caption("No test result data for selected period.")
+                st.caption("No conclusive test result data for selected period.")
         
         with col_test2:
-            turnaround_trend_df = filtered_df.dropna(subset=['test_turnaround_days'])
-            turnaround_trend = get_trend_data(turnaround_trend_df, 
-                                              'test_turnaround_days', period='D', date_col='test_date') # Use test_date
-            if not turnaround_trend.empty:
-                st.plotly_chart(plot_annotated_line_chart(
-                    turnaround_trend, "Avg. Test Turnaround Time Trend", 
-                    y_axis_title="Days", target_line=app_config.TARGET_TEST_TURNAROUND_DAYS, 
-                    target_label=f"Target: {app_config.TARGET_TEST_TURNAROUND_DAYS} Days",
-                    height=app_config.DEFAULT_PLOT_HEIGHT
-                ), use_container_width=True)
+            turnaround_trend_df = filtered_df.dropna(subset=['test_turnaround_days', 'test_date'])
+            # Ensure test_date is datetime for Grouper
+            turnaround_trend_df['test_date'] = pd.to_datetime(turnaround_trend_df['test_date'], errors='coerce')
+            turnaround_trend_df.dropna(subset=['test_date'], inplace=True)
+
+            if not turnaround_trend_df.empty:
+                turnaround_trend = get_trend_data(turnaround_trend_df, 
+                                                'test_turnaround_days', period='D', date_col='test_date')
+                if not turnaround_trend.empty:
+                    st.plotly_chart(plot_annotated_line_chart(
+                        turnaround_trend, "Avg. Test Turnaround Time Trend", 
+                        y_axis_title="Days", target_line=app_config.TARGET_TEST_TURNAROUND_DAYS, 
+                        target_label=f"Target: {app_config.TARGET_TEST_TURNAROUND_DAYS} Days",
+                        height=app_config.DEFAULT_PLOT_HEIGHT
+                    ), use_container_width=True)
+                else:
+                    st.caption("No aggregated turnaround time data for trend.")
             else:
-                st.caption("No turnaround time data for trend.")
+                st.caption("No raw turnaround time data for trend.")
+
 
     with tab_supplies:
         st.subheader("Supply Levels & Forecast")
-        # Supply forecast should use the full health_df to get latest levels, then forecast from there
-        supply_forecast_df = get_supply_forecast_data(health_df) 
+        # Supply forecast uses the full health_df to get latest levels, then forecasts from there
+        supply_forecast_df_all_items = get_supply_forecast_data(health_df) 
         
-        if not supply_forecast_df.empty:
-            available_items = sorted(supply_forecast_df['item'].unique())
-            selected_item = st.selectbox("Select Supply Item for Forecast:", available_items, key="supply_item_select_clinic")
+        if not supply_forecast_df_all_items.empty:
+            available_items = sorted(supply_forecast_df_all_items['item'].unique())
+            # Filter out 'Unknown' or 'nan' if they appear as items
+            available_items = [item for item in available_items if pd.notna(item) and str(item).lower() not in ['unknown', 'nan', 'na', 'n/a']]
 
-            if selected_item:
-                item_forecast_df = supply_forecast_df[supply_forecast_df['item'] == selected_item].copy()
-                # Ensure it's sorted by date if not already for plotting
-                item_forecast_df.sort_values('date', inplace=True)
-                item_forecast_df.set_index('date', inplace=True)
-                
-                if not item_forecast_df.empty:
-                    st.plotly_chart(plot_annotated_line_chart(
-                        item_forecast_df['forecast_days'],
-                        f"Forecast: {selected_item} (Days of Supply Remaining)",
-                        y_axis_title="Days of Supply",
-                        target_line=app_config.CRITICAL_SUPPLY_DAYS, 
-                        target_label=f"Critical Level ({app_config.CRITICAL_SUPPLY_DAYS} Days)",
-                        show_ci=True, 
-                        lower_bound_series=item_forecast_df['lower_ci'], 
-                        upper_bound_series=item_forecast_df['upper_ci'],
-                        height=app_config.DEFAULT_PLOT_HEIGHT + 50 # Slightly taller for CI
-                    ), use_container_width=True)
-                else:
-                    st.info(f"No forecast data available for {selected_item}.")
+            if not available_items:
+                 st.info("No valid supply items found for forecasting after filtering.")
             else:
-                st.info("Select a supply item to view its forecast.")
+                selected_item = st.selectbox("Select Supply Item for Forecast:", available_items, key="supply_item_select_clinic")
+
+                if selected_item:
+                    item_forecast_df = supply_forecast_df_all_items[supply_forecast_df_all_items['item'] == selected_item].copy()
+                    item_forecast_df.sort_values('date', inplace=True)
+                    item_forecast_df.set_index('date', inplace=True)
+                    
+                    if not item_forecast_df.empty:
+                        st.plotly_chart(plot_annotated_line_chart(
+                            item_forecast_df['forecast_days'],
+                            f"Forecast: {selected_item} (Days of Supply Remaining)",
+                            y_axis_title="Days of Supply",
+                            target_line=app_config.CRITICAL_SUPPLY_DAYS, 
+                            target_label=f"Critical Level ({app_config.CRITICAL_SUPPLY_DAYS} Days)",
+                            show_ci=True, 
+                            lower_bound_series=item_forecast_df['lower_ci'], 
+                            upper_bound_series=item_forecast_df['upper_ci'],
+                            height=app_config.DEFAULT_PLOT_HEIGHT + 50
+                        ), use_container_width=True)
+                    else:
+                        st.info(f"No forecast data available for {selected_item}.")
         else:
             st.caption("No supply data available to generate forecasts.")
 
@@ -163,13 +206,11 @@ else:
         st.subheader("Patient Load & Conditions")
         patient_load_cols = st.columns(2)
         with patient_load_cols[0]:
-            # Daily patient visits (unique patients per day)
             daily_visits = filtered_df.groupby(filtered_df['date'].dt.date)['patient_id'].nunique()
-            daily_visits.index = pd.to_datetime(daily_visits.index) # Convert index to datetime for plotting
-            daily_visits_series = pd.Series(daily_visits.values, index=daily_visits.index, name="Unique Patients")
-
-            if not daily_visits_series.empty:
-                 st.plotly_chart(plot_annotated_line_chart(
+            if not daily_visits.empty:
+                daily_visits.index = pd.to_datetime(daily_visits.index) 
+                daily_visits_series = pd.Series(daily_visits.values, index=daily_visits.index, name="Unique Patients")
+                st.plotly_chart(plot_annotated_line_chart(
                     daily_visits_series, "Daily Unique Patient Visits", y_axis_title="Number of Patients",
                     height=app_config.DEFAULT_PLOT_HEIGHT
                 ), use_container_width=True)
@@ -177,22 +218,26 @@ else:
                 st.caption("No patient visit data for trend.")
 
         with patient_load_cols[1]:
-            # Top conditions
-            top_conditions = filtered_df['condition'].value_counts().nlargest(5).reset_index()
-            top_conditions.columns = ['condition', 'count']
-            if not top_conditions.empty:
-                st.plotly_chart(plot_bar_chart(
-                    top_conditions, x_col='condition', y_col='count',
-                    title="Top 5 Conditions (Selected Period)",
-                    x_axis_title="Condition", y_axis_title="Number of Cases",
-                    height=app_config.DEFAULT_PLOT_HEIGHT
-                ), use_container_width=True)
+            # Filter out 'Unknown' or 'N/A' conditions before counting
+            valid_conditions_df = filtered_df[~filtered_df['condition'].isin(['Unknown', 'N/A', 'nan'])]
+            if not valid_conditions_df.empty:
+                top_conditions = valid_conditions_df['condition'].value_counts().nlargest(5).reset_index()
+                top_conditions.columns = ['condition', 'count']
+                if not top_conditions.empty:
+                    st.plotly_chart(plot_bar_chart(
+                        top_conditions, x_col='condition', y_col='count',
+                        title="Top 5 Conditions (Selected Period)",
+                        x_axis_title="Condition", y_axis_title="Number of Cases",
+                        height=app_config.DEFAULT_PLOT_HEIGHT,
+                        sort_values_by='count', ascending=False # Sort bars
+                    ), use_container_width=True)
+                else:
+                    st.caption("No significant condition data.")
             else:
-                st.caption("No condition data.")
+                st.caption("No valid condition data available.")
         
         st.markdown("---")
         st.markdown("###### Flagged Patient Cases for Review")
-        # Example: Patients with high risk recently tested positive or have pending critical tests
         flagged_patients_clinic_df = get_patient_alerts_for_clinic(filtered_df, risk_threshold=app_config.RISK_THRESHOLDS['moderate'])
         if not flagged_patients_clinic_df.empty:
             display_cols_clinic = ['patient_id', 'zone_id', 'condition', 'ai_risk_score', 'test_result', 'referral_status', 'alert_reason']
@@ -200,9 +245,7 @@ else:
             st.dataframe(
                 flagged_patients_clinic_df[actual_cols_clinic].sort_values(by='ai_risk_score', ascending=False).head(10), 
                 use_container_width=True,
-                column_config={
-                     "ai_risk_score": st.column_config.NumberColumn(format="%d")
-                }
+                column_config={ "ai_risk_score": st.column_config.NumberColumn(format="%d") }
             )
         else:
             st.info("No specific patient cases flagged for review in the selected period.")
