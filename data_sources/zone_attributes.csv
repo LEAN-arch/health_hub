@@ -1,0 +1,7 @@
+zone_id,name,population,socio_economic_index,num_clinics,avg_travel_time_clinic_min
+ZN001,Northwood,15250,0.65,2,15
+ZN002,Southville,25100,0.40,1,25
+ZN003,Eastgate,18300,0.75,3,10
+ZN004,Westend,22050,0.50,2,20
+ZN005,Riverdale,12500,0.55,1,18
+ZN006,Mountview,9800,0.80,1,22
