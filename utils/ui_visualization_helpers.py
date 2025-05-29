@@ -35,14 +35,31 @@ except Exception as e_token: # pragma: no cover
     logger.error(f"Error setting Mapbox token: {e_token}")
 
 
+# utils/ui_visualization_helpers.py
+# ... (other imports and code remain the same) ...
+
 # --- Global Plotly Theme ---
 def set_custom_plotly_theme():
     theme_font_family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"'
-    theme_primary_text_color = "#343a40" # Dark Gray
+    theme_primary_text_color = "#212529" # Dark Gray for text
     theme_secondary_text_color = "#495057" # Medium Gray
     theme_grid_color = "#e9ecef" # Light Gray for grids
     theme_border_color = "#ced4da" # For axes lines
-    theme_paper_bg_color = app_config.STYLE_CSS.get('body',{}).get('background-color',"#f8f9fa") if hasattr(app_config, 'STYLE_CSS') and isinstance(app_config.STYLE_CSS, dict) else "#f8f9fa" # Match body bg
+    # Corrected: Safely access app_config properties for theme colors
+    try:
+        # Assuming app_config.STYLE_CSS is a dict like: {'body': {'background-color': '#f8f9fa'}}
+        # This part might need adjustment based on actual structure of app_config.STYLE_CSS
+        # For now, using a fallback if app_config.STYLE_CSS is not structured as expected.
+        if hasattr(app_config, 'STYLE_CSS') and isinstance(app_config.STYLE_CSS, dict) and \
+           'body' in app_config.STYLE_CSS and isinstance(app_config.STYLE_CSS['body'], dict) and \
+           'background-color' in app_config.STYLE_CSS['body']:
+            theme_paper_bg_color = app_config.STYLE_CSS['body']['background-color']
+        else:
+            theme_paper_bg_color = "#f8f9fa" # Default fallback
+    except AttributeError: # If STYLE_CSS or its keys don't exist
+         theme_paper_bg_color = "#f8f9fa" # Default fallback
+
+
     theme_plot_bg_color = "#FFFFFF"  # White plot background typically looks clean
 
     custom_theme = go.layout.Template()
@@ -50,58 +67,61 @@ def set_custom_plotly_theme():
     custom_theme.layout.paper_bgcolor = theme_paper_bg_color
     custom_theme.layout.plot_bgcolor = theme_plot_bg_color
     
-    # Refined colorway: accessible and visually distinct
     custom_theme.layout.colorway = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997', '#6610f2', '#e83e8c']
 
     axis_common = dict(
         gridcolor=theme_grid_color,
         linecolor=theme_border_color,
-        zerolinecolor=theme_grid_color, # Zeroline same as grid
+        zerolinecolor=theme_grid_color, 
         zerolinewidth=1,
         title_font_size=13,
         tickfont_size=11,
-        automargin=True, # Allow labels to extend plot area without being cut off
-        title_standoff=15 # Space between axis title and ticks
+        automargin=True, 
+        title_standoff=15 
     )
     custom_theme.layout.xaxis = {**axis_common}
     custom_theme.layout.yaxis = {**axis_common}
     
+    # MODIFIED SECTION FOR layout.title
     custom_theme.layout.title = dict(
-        font_size=18, # Prominent title
-        font_weight='600', # Semibold
-        x=0.02, xanchor='left', # Align title to the left edge of plot area
-        y=0.97, yanchor='top',  # Position near the top
-        pad=dict(t=10, b=10)   # Padding around the title
+        font=dict( # font_size must be nested within a 'font' dict
+            size=18
+            # 'font_weight' is not a direct Plotly schema property for layout.title.font.
+            # Bolding for titles is often default or controlled by font family choice / HTML in text.
+        ),
+        x=0.01, 
+        xanchor='left', 
+        y=0.98, # As per your latest version
+        yanchor='top',
+        pad=dict(t=10, b=10)
     )
+    # END OF MODIFIED SECTION
+
     custom_theme.layout.legend = dict(
-        bgcolor='rgba(255,255,255,0.9)', # Slightly transparent white
-        bordercolor=theme_border_color,
-        borderwidth=1,
-        orientation='h', # Horizontal legend often better for dashboards
-        yanchor='bottom', y=1.01, # Position above the plot
-        xanchor='right', x=1,
+        bgcolor='rgba(255,255,255,0.85)', bordercolor=theme_border_color,borderwidth=1,
+        orientation='h', yanchor='bottom', y=1.01, xanchor='right', x=1,
         font_size=11,
-        traceorder='normal' # Or 'reversed' if preferred
+        traceorder='normal' 
     )
-    custom_theme.layout.margin = dict(l=70, r=30, t=80, b=70) # Generous margins for labels/titles
+    custom_theme.layout.margin = dict(l=70, r=30, t=80, b=70) 
     
-    # Default Mapbox style for figures created with go.Figure (px handles its own)
-    # This ensures that if MAPBOX_TOKEN_SET is false, we use a style that doesn't require a token.
     default_mapbox_style = app_config.MAPBOX_STYLE
     if not MAPBOX_TOKEN_SET and app_config.MAPBOX_STYLE not in ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain", "stamen-toner", "stamen-watercolor"]:
-        default_mapbox_style = "open-street-map" # Fallback for token-dependent styles
+        default_mapbox_style = "open-street-map" 
         logger.info(f"Plotly theme: Mapbox style '{app_config.MAPBOX_STYLE}' requires token, defaulting mapbox.style to 'open-street-map'.")
     
     custom_theme.layout.mapbox = dict(
-        style=default_mapbox_style, # Use configured or fallback style
+        style=default_mapbox_style, 
         center=dict(lat=app_config.MAP_DEFAULT_CENTER_LAT, lon=app_config.MAP_DEFAULT_CENTER_LON),
         zoom=app_config.MAP_DEFAULT_ZOOM
     )
     pio.templates["custom_health_theme"] = custom_theme
-    # Ensure custom theme is additive to plotly's base, preserving some defaults if not overridden
     pio.templates.default = "plotly+custom_health_theme" 
     logger.info("Custom Plotly theme 'custom_health_theme' set as default.")
 
+# set_custom_plotly_theme() # This line should remain here, it's called on import
+
+# ... (rest of the ui_visualization_helpers.py file remains the same) ...
 set_custom_plotly_theme() # Apply theme on import
 
 # --- Styled Components ---
