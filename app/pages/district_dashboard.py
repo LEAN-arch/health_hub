@@ -3,8 +3,13 @@ import pandas as pd
 import numpy as np
 from utils.data_processor import load_geojson
 from utils.viz_helper import plot_annotated_line_chart, render_kpi_card, render_traffic_light, plot_heatmap, plot_layered_choropleth_map
+import logging
 
-# Mock data for public health metrics
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Mock data
 mock_data = {
     "prevalence_rate": 12.5,  # Cases per 1,000
     "disease_trends": [2.2, 2.5, 2.8, 2.7, 2.9, 3.0, 3.2],
@@ -20,7 +25,7 @@ mock_data = {
     }
 }
 
-# Date labels for trends
+# Date labels
 date_labels = ["D-6", "D-5", "D-4", "D-3", "D-2", "D-1", "Today"]
 
 # Load GeoJSON
@@ -48,14 +53,17 @@ if geojson_data:
             {"zone": f["properties"]["zone"], "risk": f["properties"]["risk"], "facilities": f["properties"]["facilities"]}
             for f in geojson_data["features"]
         ])
-        st.plotly_chart(plot_layered_choropleth_map(
-            geojson_data,
-            zone_data,
-            "zone",
-            "risk",
-            "facilities",
-            "Disease Risk and Facilities by Zone"
-        ), use_container_width=True)
+        if not zone_data.empty:
+            st.plotly_chart(plot_layered_choropleth_map(
+                geojson_data,
+                zone_data,
+                "zone",
+                "risk",
+                "facilities",
+                "Disease Risk and Facilities by Zone"
+            ), use_container_width=True)
+        else:
+            st.warning("No zone data available for choropleth map.")
     except Exception as e:
         st.error(f"Error rendering choropleth map: {str(e)}")
 else:
@@ -67,7 +75,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['disease_trends'],
     "Risk (per 1,000)",
-    "#3b82f6",
+    "blue",  # Use Plotly-compatible color
     target_line=2.5,
     target_label="High: 2.5"
 ), use_container_width=True)
@@ -80,7 +88,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['outbreak_trend'],
     "Outbreak Risk (%)",
-    "#ef4444",
+    "red",  # Use Plotly-compatible color
     target_line=80,
     target_label="Critical: 80"
 ), use_container_width=True)
@@ -93,12 +101,17 @@ try:
         index=["Fever", "Respiratory", "Fatigue"],
         columns=["Fever", "Respiratory", "Fatigue"]
     ).astype(float)
-    st.plotly_chart(plot_heatmap(
-        corr_matrix,
-        "Syndromic Correlations"
-    ), use_container_width=True)
+    if not corr_matrix.empty:
+        st.plotly_chart(plot_heatmap(
+            corr_matrix,
+            "Syndromic Correlations"
+        ), use_container_width=True)
+    else:
+        st.warning("No correlation data available for heatmap.")
+    logger.info("Successfully rendered syndromic correlations heatmap")
 except Exception as e:
     st.error(f"Error rendering heatmap: {str(e)}")
+    logger.error(f"Heatmap error: {str(e)}")
 
 # Intervention Planner
 st.subheader("Intervention Planner")
