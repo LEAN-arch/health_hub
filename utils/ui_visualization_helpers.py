@@ -9,8 +9,8 @@ import plotly.io as pio
 from config import app_config
 import html
 
-# ... (set_custom_plotly_theme and other imports/logging setup remain the same) ...
-# Configure logging
+# ... (set_custom_plotly_theme, render_kpi_card, render_traffic_light, and other plotting functions remain the same) ...
+# Configure logging and set_custom_plotly_theme as in the previous complete file.
 logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging.INFO),
                     format=app_config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
@@ -30,22 +30,16 @@ def set_custom_plotly_theme():
 
     pio.templates["custom_health_theme"] = custom_theme
     pio.templates.default = "plotly+custom_health_theme"
-    logger.info("Custom Plotly theme 'custom_health_theme' set as default.")
+    # logger.info("Custom Plotly theme 'custom_health_theme' set as default.") # Can be noisy if imported often
 
 set_custom_plotly_theme()
 
-
-# --- Styled Components (HTML/CSS via st.markdown) ---
-# Back to rendering directly, but ensuring the HTML string is very clean.
 
 def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None):
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}
     status_final_class = status_class_map.get(status, "")
     delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(str(delta))}</p>' if delta else ""
     tooltip_html = f'title="{html.escape(str(help_text))}"' if help_text else ''
-
-    # Construct the HTML string carefully. Ensure NO newlines at the very start or end of the string passed to st.markdown.
-    # The .strip() on the multiline f-string is crucial.
     html_content = f"""
 <div class="kpi-card {status_final_class}" {tooltip_html}>
     <div class="kpi-card-header">
@@ -56,26 +50,148 @@ def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neu
         <p class="kpi-value">{html.escape(str(value))}</p>
         {delta_html}
     </div>
-</div>""".strip() # Critical: .strip() on the whole f-string literal
-
+</div>""".strip()
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_traffic_light(message, status, details=""):
     status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low", "Neutral": "status-neutral"}
     dot_status_class = status_class_map.get(status, "status-neutral")
     details_html = f'<span class="traffic-light-details">{html.escape(str(details))}</span>' if details else ""
-
     html_content = f"""
 <div class="traffic-light-indicator">
     <span class="traffic-light-dot {dot_status_class}"></span>
     <span class="traffic-light-message">{html.escape(str(message))}</span>
     {details_html}
-</div>""".strip() # Critical: .strip()
-
+</div>""".strip()
     st.markdown(html_content, unsafe_allow_html=True)
 
 
-# --- Plotting Functions (remain the same as your last "complete corrected file" version) ---
+def plot_layered_choropleth_map(gdf, value_col, title,
+                                 id_col='zone_id', featureidkey_prop='zone_id',
+                                 color_continuous_scale="OrRd", hover_cols=None,
+                                 facility_gdf=None, facility_size_col=None, facility_hover_name=None,
+                                 height=None, center_lat=None, center_lon=None, zoom_level=None,
+                                 mapbox_style="carto-positron"): # Added mapbox_style parameter
+    """
+    Creates an enhanced choropleth map that automatically fits to data bounds if center/zoom are not provided.
+    """
+    height = height if height is not None else app_config.MAP_PLOT_HEIGHT
+    # Default zoom from config will be used if not overridden AND not calculated from bounds
+    # We will calculate zoom if center_lat/lon are also not provided.
+
+    if gdf is None or gdf.empty or value_col not in gdf.columns or id_col not in gdf.columns:
+        logger.warning(f"Invalid GeoDataFrame or missing columns for choropleth map: {title}")
+        return go.Figure().update_layout(title_text=f"{title} (No geographic data or required metric missing)", height=height,
+                                          annotations=[dict(text="Map data unavailable", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
+
+    gdf_plot = gdf.copy()
+    if not pd.api.types.is_numeric_dtype(gdf_plot[value_col]):
+        logger.info(f"Value column '{value_col}' for choropleth map '{title}' is not numeric. Attempting conversion.")
+        gdf_plot[value_col] = pd.to_numeric(gdf_plot[value_col], errors='coerce')
+        if gdf_plot[value_col].isnull().all():
+            logger.warning(f"All values in '{value_col}' became NaN after conversion for map '{title}'. Cannot plot.")
+            return go.Figure().update_layout(title_text=f"{title} (No valid numeric data for selected metric)", height=height,
+                                              annotations=[dict(text="Map data values are all invalid", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
+        # We don't drop NaNs for the main layer as it would remove geometries. Plotly handles NaNs in color.
+
+    default_hover_cols = ['name', 'population', value_col]
+    final_hover_cols = [col for col in (hover_cols if hover_cols else default_hover_cols) if col in gdf_plot.columns]
+
+    # --- Determine Map Center and Zoom ---
+    # Priority: 1. User-provided center/zoom, 2. Calculated from bounds, 3. Default zoom from config (center will be auto by Plotly)
+    
+    map_layout_args = {"mapbox_style": mapbox_style}
+    
+    if center_lat is not None and center_lon is not None:
+        map_layout_args["mapbox_center"] = {"lat": center_lat, "lon": center_lon}
+        if zoom_level is not None:
+            map_layout_args["mapbox_zoom"] = zoom_level
+        else:
+            map_layout_args["mapbox_zoom"] = app_config.MAP_DEFAULT_ZOOM # Use default zoom if center is given but zoom isn't
+    else:
+        # Attempt to fit bounds if no center is provided
+        # `fitbounds="locations"` is the easiest way for px.choropleth_mapbox
+        # It uses the `locations` and `geojson` to determine bounds.
+        map_layout_args["fitbounds"] = "locations"
+        # We can also manually calculate if fitbounds is not sufficient, e.g. if facilities are far out
+        # For manual calculation:
+        # valid_geoms_gdf = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
+        # if not valid_geoms_gdf.empty:
+        #     try:
+        #         bounds = valid_geoms_gdf.total_bounds
+        #         if not np.isinf(bounds).any() and not np.isnan(bounds).any():
+        #             map_layout_args["mapbox_center"] = {"lon": (bounds[0] + bounds[2]) / 2, "lat": (bounds[1] + bounds[3]) / 2}
+        #             # A very rough zoom calculation, might need a library or more complex heuristic
+        #             # For simplicity, 'fitbounds' is often better.
+        #             # lon_diff = bounds[2] - bounds[0]
+        #             # lat_diff = bounds[3] - bounds[1]
+        #             # if lon_diff > 0 and lat_diff > 0:
+        #             # map_layout_args["mapbox_zoom"] = min(np.log2(360/lon_diff), np.log2(180/lat_diff)) -1 # Heuristic
+        #             # else: map_layout_args["mapbox_zoom"] = app_config.MAP_DEFAULT_ZOOM
+        #         else: logger.warning(f"Invalid bounds for map '{title}'. fitbounds will be used.")
+        #     except Exception as e_map_center:
+        #         logger.error(f"Error calculating map center for '{title}': {e_map_center}. fitbounds will be used.")
+        # else: logger.warning(f"No valid geometries in GDF for map '{title}' to calculate center. fitbounds will be used.")
+        if zoom_level is not None : # If zoom is provided but center isn't, fitbounds might ignore it.
+            map_layout_args["mapbox_zoom"] = zoom_level # This might override fitbounds zoom. Test behavior.
+
+
+    fig = px.choropleth_mapbox(
+        gdf_plot,
+        geojson=gdf_plot.geometry.__geo_interface__,
+        locations=gdf_plot[id_col],
+        featureidkey=f"properties.{featureidkey_prop}",
+        color=value_col,
+        color_continuous_scale=color_continuous_scale,
+        opacity=0.75,
+        hover_name="name" if "name" in gdf_plot.columns else id_col,
+        hover_data=final_hover_cols,
+        labels={value_col: value_col.replace('_',' ').title()},
+        **map_layout_args # Pass computed mapbox_style, center, zoom, or fitbounds
+    )
+
+    if facility_gdf is not None and not facility_gdf.empty and 'geometry' in facility_gdf.columns:
+        facility_gdf_points = facility_gdf[facility_gdf.geometry.geom_type == 'Point'].copy()
+        if not facility_gdf_points.empty:
+            size_data = 8 # Default size
+            if facility_size_col and facility_size_col in facility_gdf_points.columns and pd.api.types.is_numeric_dtype(facility_gdf_points[facility_size_col]):
+                # Scale size for better viz if values are large or small
+                min_size, max_size = 4, 15 # Min and max pixel size for markers
+                s_min, s_max = facility_gdf_points[facility_size_col].min(), facility_gdf_points[facility_size_col].max()
+                if s_max > s_min : # Avoid division by zero
+                    size_data = min_size + (facility_gdf_points[facility_size_col] - s_min) * (max_size - min_size) / (s_max - s_min)
+                elif s_max == s_min and pd.notna(s_max): # All same size
+                    size_data = (min_size + max_size) / 2
+                else: # All NaN or single value
+                    size_data = 8
+
+            hover_text_data = facility_gdf_points[facility_hover_name] if facility_hover_name and facility_hover_name in facility_gdf_points.columns else "Facility"
+            
+            fig.add_trace(go.Scattermapbox(
+                lon=facility_gdf_points.geometry.x, lat=facility_gdf_points.geometry.y,
+                mode='markers',
+                marker=go.scattermapbox.Marker(
+                    size=size_data,
+                    sizemin=4, # Ensure even if size_data is scalar, it's visible
+                    color='#1E3A8A', # Dark Blue for facilities
+                    opacity=0.85,
+                    allowoverlap=True
+                ),
+                text=hover_text_data, hoverinfo='text', name='Health Facilities'
+            ))
+        else: logger.warning("Facility GDF provided but contains no Point geometries for map layer.")
+
+    fig.update_layout(
+        title_text=title,
+        height=height,
+        margin={"r":5,"t":45,"l":5,"b":5}, # Tighter margins for map
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.6)')
+    )
+    logger.info(f"Rendered choropleth map: {title}")
+    return fig
+
+# --- Other plotting functions (plot_annotated_line_chart, plot_bar_chart, etc.) ---
+# (These remain the same as your last fully provided ui_visualization_helpers.py)
 # ... (ensure all plotting functions like plot_annotated_line_chart, etc., are here) ...
 def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=None,
                               target_line=None, target_label=None, show_ci=False,
@@ -150,7 +266,7 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
         hovermode="x unified",
         legend=dict(traceorder='normal', itemclick="toggleothers", itemdoubleclick="toggle")
     )
-    logger.info(f"Rendered line chart: {title}")
+    # logger.info(f"Rendered line chart: {title}") # Reduce noise
     return fig
 
 
@@ -183,7 +299,7 @@ def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
                       textfont_size=10, textangle=0, textposition='outside', cliponaxis=False)
     fig.update_layout(yaxis_title=y_axis_title_final, xaxis_title=x_axis_title_final, uniformtext_minsize=8, uniformtext_mode='hide')
     
-    logger.info(f"Rendered bar chart: {title}")
+    # logger.info(f"Rendered bar chart: {title}") # Reduce noise
     return fig
 
 
@@ -202,14 +318,14 @@ def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
     
     fig.update_layout(title_text=title, height=height, showlegend=True, 
                       legend=dict(orientation="v", yanchor="top", y=0.9, xanchor="right", x=1.1))
-    logger.info(f"Rendered donut chart: {title}")
+    # logger.info(f"Rendered donut chart: {title}") # Reduce noise
     return fig
 
 
 def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 70
     
-    if not isinstance(matrix_df, pd.DataFrame) or matrix_df.empty: # pragma: no cover
+    if not isinstance(matrix_df, pd.DataFrame) or matrix_df.empty: 
         logger.error(f"Invalid input for heatmap: {title}. Must be a non-empty DataFrame.")
         return go.Figure().update_layout(title_text=f"{title} (No data or invalid data)", height=height,
                                           annotations=[dict(text="Invalid data for Heatmap", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
@@ -225,21 +341,22 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
                 is_all_numeric_convertible = False
                 break
         
-        if not is_all_numeric_convertible: # pragma: no cover
+        if not is_all_numeric_convertible: 
              logger.error(f"Matrix for heatmap '{title}' contains non-numeric values that cannot be reliably converted.")
              return go.Figure().update_layout(title_text=f"{title} (Contains non-convertible non-numeric data)", height=height,
                                               annotations=[dict(text="Non-numeric data in Heatmap", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
         
         numeric_matrix_df = matrix_df.apply(pd.to_numeric, errors='coerce').fillna(0)
 
-    except Exception as e: # pragma: no cover
+    except Exception as e: 
         logger.error(f"Error converting matrix to numeric for heatmap '{title}': {e}", exc_info=True)
         return go.Figure().update_layout(title_text=f"{title} (Data processing error for heatmap)", height=height,
                                           annotations=[dict(text="Error processing Heatmap data", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
 
     fig = go.Figure(data=go.Heatmap(
         z=numeric_matrix_df.values, x=numeric_matrix_df.columns.tolist(), y=numeric_matrix_df.index.tolist(),
-        colorscale=colorscale, zmid=zmid if (not numeric_matrix_df.empty and numeric_matrix_df.min().min() < 0 and numeric_matrix_df.max().max() > 0) else None,
+        colorscale=colorscale, 
+        zmid=zmid if (not numeric_matrix_df.empty and numeric_matrix_df.min(numeric_only=True).min() < 0 and numeric_matrix_df.max(numeric_only=True).max() > 0) else None,
         text=np.around(numeric_matrix_df.values, decimals=2) if not numeric_matrix_df.empty else None, 
         texttemplate="%{text}" if not numeric_matrix_df.empty else "",
         hoverongaps=False, xgap=1, ygap=1,
@@ -248,82 +365,5 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     
     fig.update_layout(title_text=title, height=height, xaxis_showgrid=False, yaxis_showgrid=False, 
                       xaxis_tickangle=-30 if len(numeric_matrix_df.columns) > 5 else 0, yaxis_autorange='reversed')
-    logger.info(f"Rendered heatmap: {title}")
-    return fig
-
-
-def plot_layered_choropleth_map(gdf, value_col, title, 
-                                 id_col='zone_id', featureidkey_prop='zone_id', 
-                                 color_continuous_scale="OrRd", hover_cols=None, 
-                                 facility_gdf=None, facility_size_col=None, facility_hover_name=None,
-                                 height=None, center_lat=None, center_lon=None, zoom_level=None):
-    height = height if height is not None else app_config.MAP_PLOT_HEIGHT
-    zoom = zoom_level if zoom_level is not None else app_config.MAP_DEFAULT_ZOOM
-
-    if gdf is None or gdf.empty or value_col not in gdf.columns or id_col not in gdf.columns: # pragma: no cover
-        logger.warning(f"Invalid GeoDataFrame or missing columns for choropleth map: {title}")
-        return go.Figure().update_layout(title_text=f"{title} (No geographic data or required metric missing)", height=height,
-                                          annotations=[dict(text="Map data unavailable", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
-
-    gdf_plot = gdf.copy() 
-    if not pd.api.types.is_numeric_dtype(gdf_plot[value_col]):
-        logger.info(f"Value column '{value_col}' for choropleth map '{title}' is not numeric. Attempting conversion.")
-        gdf_plot[value_col] = pd.to_numeric(gdf_plot[value_col], errors='coerce')
-        # Do NOT dropna here for the main choropleth layer, as it would remove geometries.
-        # Plotly can handle NaNs in the color data (they usually show as gray or transparent).
-        # If all values become NaN, then it's an issue.
-        if gdf_plot[value_col].isnull().all(): # pragma: no cover
-            logger.warning(f"All values in '{value_col}' became NaN after conversion for map '{title}'.")
-            return go.Figure().update_layout(title_text=f"{title} (No valid numeric data for selected metric)", height=height,
-                                              annotations=[dict(text="Map data values are all invalid", xref="paper", yref="paper", showarrow=False, font=dict(size=14))])
-
-    default_hover_cols = ['name', 'population', value_col]
-    final_hover_cols = [col for col in (hover_cols if hover_cols else default_hover_cols) if col in gdf_plot.columns]
-
-    fig = px.choropleth_mapbox(
-        gdf_plot, geojson=gdf_plot.geometry.__geo_interface__, locations=gdf_plot[id_col],
-        featureidkey=f"properties.{featureidkey_prop}", color=value_col,
-        color_continuous_scale=color_continuous_scale, mapbox_style="carto-positron",
-        opacity=0.75, hover_name="name" if "name" in gdf_plot.columns else id_col,
-        hover_data=final_hover_cols,
-        labels={value_col: value_col.replace('_',' ').title()}
-    )
-
-    if facility_gdf is not None and not facility_gdf.empty and 'geometry' in facility_gdf.columns:
-        facility_gdf_points = facility_gdf[facility_gdf.geometry.geom_type == 'Point'].copy()
-        if not facility_gdf_points.empty:
-            size_data = facility_gdf_points[facility_size_col] if facility_size_col and facility_size_col in facility_gdf_points.columns and pd.api.types.is_numeric_dtype(facility_gdf_points[facility_size_col]) else 8
-            hover_text_data = facility_gdf_points[facility_hover_name] if facility_hover_name and facility_hover_name in facility_gdf_points.columns else "Facility"
-            
-            fig.add_trace(go.Scattermapbox(
-                lon=facility_gdf_points.geometry.x, lat=facility_gdf_points.geometry.y,
-                mode='markers', marker=go.scattermapbox.Marker(
-                    size=size_data, sizemin=4, color='#1E3A8A', opacity=0.9, allowoverlap=True),
-                text=hover_text_data, hoverinfo='text', name='Health Facilities'
-            ))
-        else: logger.warning("Facility GDF provided but contains no Point geometries for map layer.") # pragma: no cover
-    
-    final_center_lat, final_center_lon, final_zoom = center_lat, center_lon, zoom
-    if (final_center_lat is None or final_center_lon is None) and not gdf_plot.empty:
-        valid_geoms_gdf = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
-        if not valid_geoms_gdf.empty: # pragma: no cover
-            try:
-                bounds = valid_geoms_gdf.total_bounds
-                if not np.isinf(bounds).any() and not np.isnan(bounds).any():
-                    final_center_lon = (bounds[0] + bounds[2]) / 2
-                    final_center_lat = (bounds[1] + bounds[3]) / 2
-                    if len(valid_geoms_gdf) == 1: final_zoom = 10 
-                else: logger.warning(f"Invalid bounds for map '{title}'.") # pragma: no cover
-            except Exception as e_map_center: # pragma: no cover
-                logger.error(f"Error calculating map center for '{title}': {e_map_center}.")
-        else: logger.warning(f"No valid geometries in GDF for map '{title}' to calculate center.") # pragma: no cover
-
-    fig.update_layout(
-        title_text=title,
-        mapbox_zoom=final_zoom,
-        mapbox_center={"lat": final_center_lat, "lon": final_center_lon} if final_center_lat is not None and final_center_lon is not None else None,
-        height=height, margin={"r":10,"t":50,"l":10,"b":10},
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.7)')
-    )
-    logger.info(f"Rendered choropleth map: {title}")
+    # logger.info(f"Rendered heatmap: {title}") # Reduce noise
     return fig
