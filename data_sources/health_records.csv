@@ -25,6 +25,4 @@ P019,2023-10-19,Anemia,Ferritin Test,Low,2,2023-10-17,Iron Sucrose IV,1,25,0.3,Z
 P020,2023-10-20,Pneumonia,Follow-up,Improving,1,2023-10-19,Amoxicillin Syrup,0,180,5,ZoneB,55,5000,97,96,37.1,0,C02,DOC002,,Negative,,0,Completed,2023-10-18,0,Male,65,72,45,6.6,71,5
 P021,2023-10-21,Hypertension,Follow-up,Stable,0,2023-10-21,Lisinopril,0,50,0.5,ZoneA,40,9200,99,98,36.5,0,C01,DOC001,BP controlled,Negative,,0,N/A,,,Female,68,60,59,8.1,88,2
 P022,2023-10-22,Diabetes,HbA1c,7.5,3,2023-10-19,Insulin Pens,1,60,1,ZoneB,70,4800,96,94,37.2,0,C02,DOC002,Adjusting insulin,Negative,,1,Pending,2023-10-22,0,Male,52,72,42,5.9,63,7
-P023,2023-10-23,Wellness Visit,Mental Health Screen,Moderate,0,2023-10-23,,,0,0,0,ZoneC,50,6500,97,96,37.0,0,C03,DOC003,Referred to counseling,Negative,,0,Pending,2023-10-23,0,Female,34,68,48,6.9,74,6
-P024,2023-10-24,TB,Chest X-Ray,Positive,1,2023-10-23,TB-Regimen A,1,70,2.2,ZoneD,89,3200,94,92,38.3,0,C04,DOC004,New extensive TB,Negative,,1,Initiated,2023-10-24,0,Male,40,75,40,5.1,59,8
-P025,2023-10-25,STI-HPV,PapSmear,Abnormal-LSIL,7,2023-10-18,,,0,0,0,ZoneA,60,7100,98,97,36.8,0,C01,DOC001,Needs colposcopy,Positive,,0,Pending,2023-10-25,0,Female,29,66,50,7.6,81,4
+
