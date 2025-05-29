@@ -1,16 +1,31 @@
 import streamlit as st
 
-# Set page configuration
-st.set_page_config(page_title="Health Intelligence Hub", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Health Hub",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Title
 st.title("Community Health Intelligence Hub")
+st.markdown("**Role-based insights for health stakeholders**")
 
 # Sidebar for role selection
-st.sidebar.markdown("### Navigation")
-st.sidebar.markdown("Select a role to view tailored insights.")
-st.sidebar.markdown("---")
-role = st.sidebar.selectbox("Select Role", ["CHW", "Clinic", "District"], key="role_selector")
+st.sidebar.header("Select Role")
+role = st.sidebar.selectbox("Role", ["CHW", "Clinic", "District"])
+
+# Role-based navigation
+if role == "CHW":
+    st.markdown("### Community Health Worker Dashboard")
+    st.write("Navigate to the CHW Dashboard page for field insights.")
+elif role == "Clinic":
+    st.markdown("### Clinic Manager Dashboard")
+    st.write("Navigate to the Clinic Dashboard page for operational insights.")
+elif role == "District":
+    st.markdown("### District Officer Dashboard")
+    st.write("Navigate to the District Dashboard page for strategic insights.")
 
 # Instructions
-st.markdown(f"Welcome to the **{role} Dashboard**. Navigate using the sidebar or explore pages below.")
+st.sidebar.markdown("---")
+st.sidebar.markdown("Use the sidebar to select a role and navigate to the corresponding dashboard.")
+st.sidebar.markdown("[Source Code](https://github.com/LEAN-arch/health_hub)")

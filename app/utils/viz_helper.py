@@ -1,10 +1,11 @@
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
+import numpy as np
 
-def plot_line_chart(labels, data, title, color, target_line=None, target_label=None):
+def plot_annotated_line_chart(labels, data, title, color, target_line=None, target_label=None, ci_lower=None, ci_upper=None):
     """
-    Create a gradient-filled line chart with optional target line.
+    Create a line chart with annotations and optional confidence intervals.
     """
     fig = go.Figure()
     
@@ -19,6 +20,16 @@ def plot_line_chart(labels, data, title, color, target_line=None, target_label=N
         name=title
     ))
     
+    if ci_lower and ci_upper:
+        fig.add_trace(go.Scatter(
+            x=labels + labels[::-1],
+            y=ci_upper + ci_lower[::-1],
+            fill="toself",
+            fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.2)",
+            line=dict(color="transparent"),
+            name="CI"
+        ))
+    
     if target_line is not None:
         fig.add_hline(
             y=target_line,
@@ -27,6 +38,19 @@ def plot_line_chart(labels, data, title, color, target_line=None, target_label=N
             annotation_text=target_label,
             annotation_position="top right",
             annotation_font_color="#ef4444"
+        )
+    
+    # Add anomaly annotations
+    anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
+    for idx in anomalies:
+        fig.add_annotation(
+            x=labels[idx],
+            y=data[idx],
+            text="Anomaly",
+            showarrow=True,
+            arrowhead=2,
+            ax=20,
+            ay=-30
         )
     
     fig.update_layout(
@@ -71,7 +95,7 @@ def plot_bar_chart(categories, values, title, color):
 
 def plot_donut_chart(labels, values, title):
     """
-    Create a donut chart for distribution data.
+    Create a donut chart with hover details.
     """
     fig = go.Figure()
     
@@ -79,9 +103,9 @@ def plot_donut_chart(labels, values, title):
         labels=labels,
         values=values,
         hole=0.4,
-        marker_colors=["#ef4444", "#22c55e", "#facc15"],
+        marker_colors=["#d73027", "#1a9850", "#fee08b"],  # Colorblind-friendly
         textinfo="label+percent",
-        hoverinfo="label+value"
+        hoverinfo="label+value+percent"
     ))
     
     fig.update_layout(
@@ -97,16 +121,22 @@ def plot_donut_chart(labels, values, title):
 
 def plot_heatmap(matrix, title):
     """
-    Create a heatmap for correlation matrix.
+    Create a heatmap with annotations.
     """
+    try:
+        z = np.array(matrix.values, dtype=float)
+        text = np.around(z, decimals=2)
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid matrix data for heatmap: {str(e)}")
+
     fig = go.Figure(data=go.Heatmap(
-        z=matrix.values,
+        z=z,
         x=matrix.columns,
         y=matrix.index,
         colorscale="RdYlGn",
         zmin=-1,
         zmax=1,
-        text=matrix.values.round(2),
+        text=text,
         texttemplate="%{text}",
         hoverinfo="x+y+z"
     ))
@@ -123,9 +153,29 @@ def plot_heatmap(matrix, title):
     
     return fig
 
-def plot_choropleth_map(geojson, data, location_col, value_col, title):
+def plot_treemap(labels, values, parents, title):
     """
-    Create a choropleth map for geospatial data.
+    Create a treemap for prioritization.
+    """
+    fig = go.Figure(go.Treemap(
+        labels=labels,
+        values=values,
+        parents=parents,
+        marker_colorscale="Blues",
+        textinfo="label+value"
+    ))
+    
+    fig.update_layout(
+        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
+        margin=dict(l=40, r=40, t=60, b=40),
+        height=300
+    )
+    
+    return fig
+
+def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility_col, title):
+    """
+    Create a layered choropleth map with risk and facilities.
     """
     fig = px.choropleth(
         data,
@@ -136,6 +186,16 @@ def plot_choropleth_map(geojson, data, location_col, value_col, title):
         color_continuous_scale="Reds",
         range_color=[2.0, 3.5],
         labels={value_col: "Disease Risk"}
+    )
+    
+    # Add facility scatter
+    fig.add_scattergeo(
+        lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]],
+        lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson["features"]],
+        text=data[facility_col],
+        mode="markers+text",
+        marker=dict(size=10, color="blue", symbol="cross"),
+        name="Facilities"
     )
     
     fig.update_geos(
@@ -155,7 +215,7 @@ def plot_choropleth_map(geojson, data, location_col, value_col, title):
 
 def render_kpi_card(title, value, icon, status=None, drilldown=False):
     """
-    Render a styled KPI card with optional status and drilldown.
+    Render a styled KPI card.
     """
     status_color = {
         "High": "bg-red-500 text-white",
@@ -181,7 +241,7 @@ def render_kpi_card(title, value, icon, status=None, drilldown=False):
 
 def render_traffic_light(message, status):
     """
-    Render a traffic light indicator for alerts.
+    Render a traffic light indicator.
     """
     status_color = {
         "High": "bg-red-500",
