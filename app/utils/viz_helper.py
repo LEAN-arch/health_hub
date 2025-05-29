@@ -35,7 +35,7 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
             x=labels + labels[::-1],
             y=ci_upper + ci_lower[::-1],
             fill="toself",
-            fillcolor=f"rgba(150, 150, 150, 0.2)",  # Gray with opacity
+            fillcolor="rgba(150, 150, 150, 0.2)",  # Gray with opacity
             line=dict(width=0),  # No visible line
             name="CI",
             showlegend=True
@@ -131,7 +131,7 @@ def plot_donut_chart(labels, values, title):
         labels=labels,
         values=values,
         hole=0.4,
-        marker_colors=["#d73027", "#1a9850", "#fee838"],  # Colorblind-friendly
+        marker_colors=["#d73027", "#1a9850", "#fee08b"],  # Colorblind-friendly
         textinfo="label+percent",
         hoverinfo="label+value+percent"
     ))
@@ -158,7 +158,7 @@ def plot_heatmap(matrix, title):
             raise ValueError("Matrix is empty")
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError(f"Matrix must be square, got shape {matrix.shape}")
-        if not np.all(matrix.applymap(np.isreal)):
+        if not np.all(matrix.apply(lambda x: np.isreal(x))):
             raise ValueError("Matrix contains non-numeric values")
         
         z = np.array(matrix.values, dtype=float)
@@ -180,10 +180,10 @@ def plot_heatmap(matrix, title):
             title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
             xaxis=dict(tickfont=dict(size=12)),
             yaxis=dict(tickfont=dict(size=12)),
-            height=300,
             plot_bgcolor="white",
             paper_bgcolor="white",
-            margin=dict(l=40, r=40, t=60, b=40)
+            margin=dict(l=40, r=40, t=60, b=40),
+            height=300
         )
         
         logger.info(f"Rendered heatmap: {title}")
@@ -192,14 +192,14 @@ def plot_heatmap(matrix, title):
     except Exception as e:
         st.error(f"Error plotting heatmap: {str(e)}")
         logger.error(f"Heatmap error: {str(e)}")
-        return None
+        return go.Figure()
 
-def plot_treemap(labels, bars, parents, value):
+def plot_treemap(labels, values, parents, title):
     """
     Create a treemap for prioritization.
     """
-    if not labels or not values or not bars or len(labels) != len(parents) or len(labels) != len(parents):
-        st.error("Invalid input: Labels or values must be non-empty and equal length.")
+    if not labels or not values or not parents or len(labels) != len(values) or len(labels) != len(parents):
+        st.error("Invalid input: Labels, values, and parents must be non-empty and of equal length.")
         logger.error("Invalid input for treemap")
         return go.Figure()
     
@@ -213,14 +213,14 @@ def plot_treemap(labels, bars, parents, value):
     
     fig.update_layout(
         title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-        margin=dict(l=40, r=40, t=60, b=0),
+        margin=dict(l=40, r=40, t=60, b=40),
         height=300
     )
     
     logger.info(f"Rendered treemap: {title}")
     return fig
 
-def plot_layered_choroplethmap(geojson_data, data, location_col, value_col, facility_col, title):
+def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, facility_col, title):
     """
     Create a layered choropleth map with risk and facilities.
     """
@@ -236,15 +236,15 @@ def plot_layered_choroplethmap(geojson_data, data, location_col, value_col, faci
             locations=location_col,
             featureidkey="properties.zone",
             color=value_col,
-            color_continuous_scale="reds",
+            color_continuous_scale="Reds",
             range_color=[2.0, 3.5],
             labels={value_col: "Disease Risk"}
         )
         
-        # Add facility scatter points
+        # Add facility scatter
         fig.add_scattergeo(
-            lon=[f["geometry"]["coordinates"][0][0][0]" for f in geojson["features"]],
-            lat=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]]],
+            lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson_data["features"]],
+            lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson_data["features"]],
             text=data[facility_col],
             mode="markers+text",
             marker=dict(size=10, color="blue", symbol="cross"),
@@ -258,7 +258,7 @@ def plot_layered_choroplethmap(geojson_data, data, location_col, value_col, faci
         
         fig.update_layout(
             title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-            margin=dict(l=40, r=40, t=70, b=40),
+            margin=dict(l=40, r=40, t=60, b=40),
             height=400,
             plot_bgcolor="white",
             paper_bgcolor="white"
