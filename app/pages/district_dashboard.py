@@ -50,17 +50,17 @@ st.subheader("AI Disease Risk Map")
 if geojson_data:
     try:
         zone_data = pd.DataFrame([
-            {"zone": f["properties"]["zone"], "risk": f["properties"]["risk"], "facilities": f["properties"]["facilities"]}
+            {"name": f["properties"]["name"], "risk": f["properties"]["risk"], "facilities": f["properties"]["facilities"]}
             for f in geojson_data["features"]
         ])
         if not zone_data.empty:
             st.plotly_chart(plot_layered_choropleth_map(
                 geojson_data,
                 zone_data,
-                "zone",
+                "name",
                 "risk",
                 "facilities",
-                "Disease Risk and Facilities by Zone"
+                "Disease Risk and Health Facilities by Zone"
             ), use_container_width=True)
         else:
             st.warning("No zone data available for choropleth map.")
@@ -76,7 +76,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['disease_trends'],
     "Risk (per 1,000)",
-    "blue",  # Plotly-compatible color
+    "blue",
     target_line=2.5,
     target_label="High: 2.5"
 ), use_container_width=True)
@@ -89,7 +89,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['outbreak_trend'],
     "Outbreak Risk (%)",
-    "red",  # Plotly-compatible color
+    "red",
     target_line=80,
     target_label="Critical: 80"
 ), use_container_width=True)
