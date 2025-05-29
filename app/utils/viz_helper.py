@@ -19,7 +19,6 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
     
     fig = go.Figure()
     
-    # Main data trace
     fig.add_trace(go.Scatter(
         x=labels,
         y=data,
@@ -29,19 +28,17 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
         name=title
     ))
     
-    # Confidence interval trace
     if ci_lower and ci_upper and len(ci_lower) == len(ci_upper) == len(labels):
         fig.add_trace(go.Scatter(
             x=labels + labels[::-1],
             y=ci_upper + ci_lower[::-1],
             fill="toself",
-            fillcolor="rgba(150, 150, 150, 0.2)",  # Gray with opacity
-            line=dict(width=0),  # No visible line
+            fillcolor="rgba(150, 150, 150, 0.2)",
+            line=dict(width=0),
             name="CI",
             showlegend=True
         ))
     
-    # Target line
     if target_line is not None:
         fig.add_hline(
             y=target_line,
@@ -52,7 +49,6 @@ def plot_annotated_line_chart(labels, data, title, color, target_line=None, targ
             annotation_font_color="red"
         )
     
-    # Anomaly annotations
     try:
         anomalies = [i for i, v in enumerate(data) if v > np.percentile(data, 95)]
         for idx in anomalies:
@@ -131,7 +127,7 @@ def plot_donut_chart(labels, values, title):
         labels=labels,
         values=values,
         hole=0.4,
-        marker_colors=["#d73027", "#1a9850", "#fee08b"],  # Colorblind-friendly
+        marker_colors=["#d73027", "#1a9850", "#fee08b"],
         textinfo="label+percent",
         hoverinfo="label+value+percent"
     ))
@@ -153,7 +149,6 @@ def plot_heatmap(matrix, title):
     Create a heatmap with annotations.
     """
     try:
-        # Validate matrix
         if matrix.empty:
             raise ValueError("Matrix is empty")
         if matrix.shape[0] != matrix.shape[1]:
@@ -222,7 +217,7 @@ def plot_treemap(labels, values, parents, title):
 
 def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, facility_col, title):
     """
-    Create a layered choropleth map with risk and facilities.
+    Create a layered choropleth map with risk and facilities, styled for realism.
     """
     if not geojson_data or data.empty or location_col not in data or value_col not in data or facility_col not in data:
         st.error("Invalid input: GeoJSON and data must be valid with required columns.")
@@ -238,30 +233,85 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
             color=value_col,
             color_continuous_scale="Reds",
             range_color=[2.0, 3.5],
-            labels={value_col: "Disease Risk"}
+            labels={value_col: "Disease Risk (per 1,000)"},
+            hover_data=[value_col, facility_col]
         )
         
         # Add facility scatter
+        facility_lons = []
+        facility_lats = []
+        facility_texts = []
+        for feature in geojson_data["features"]:
+            zone = feature["properties"]["zone"]
+            zone_data = data[data[location_col] == zone]
+            if not zone_data.empty:
+                num_facilities = zone_data[facility_col].iloc[0]
+                # Use centroid of polygon for facility marker
+                coords = feature["geometry"]["coordinates"][0]  # Assuming Polygon
+                lon = sum(p[0] for p in coords) / len(coords)
+                lat = sum(p[1] for p in coords) / len(coords)
+                facility_lons.append(lon)
+                facility_lats.append(lat)
+                facility_texts.append(f"{zone}: {num_facilities} facilities")
+        
         fig.add_scattergeo(
-            lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson_data["features"]],
-            lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson_data["features"]],
-            text=data[facility_col],
+            lon=facility_lons,
+            lat=facility_lats,
+            text=facility_texts,
             mode="markers+text",
             marker=dict(size=10, color="blue", symbol="cross"),
-            name="Facilities"
+            textposition="top center",
+            name="Health Facilities"
         )
         
+        # Add basemap and styling
         fig.update_geos(
+            projection_type="mercator",
             fitbounds="locations",
-            visible=False
+            visible=True,
+            showcountries=True,
+            showsubunits=True,
+            showlakes=True,
+            lakecolor="rgb(200, 200, 255)",
+            showrivers=True,
+            rivercolor="rgb(200, 200, 255)"
         )
         
         fig.update_layout(
             title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-            margin=dict(l=40, r=40, t=60, b=40),
-            height=400,
-            plot_bgcolor="white",
-            paper_bgcolor="white"
+            margin=dict(l=20, r=20, t=60, b=20),
+            height=500,
+            geo=dict(
+                bgcolor="white",
+                landcolor="rgb(240, 240, 240)",
+                subunitcolor="rgb(200, 200, 200)",
+                countrycolor="rgb(150, 150, 150)"
+            ),
+            coloraxis_colorbar=dict(
+                title="Disease Risk",
+                thickness=10,
+                x=0.05,
+                xanchor="left",
+                y=0.5,
+                len=0.75
+            ),
+            showlegend=True
+        )
+        
+        # Add OpenStreetMap tiles
+        fig.update_layout(
+            mapbox=dict(
+                style="open-street-map",
+                center={"lat": sum(facility_lats) / len(facility_lats), "lon": sum(facility_lons) / len(facility_lons)},
+                "zoom=0,
+                zoom="5,
+                layers=[{
+                    "sourcetype": "geojson",
+                    "source": geojson_data,
+                    "type": "fill",
+                    "color": "rgba(255, 0, 0, 0.2)"
+                }]
+            )
         )
         
         logger.info(f"Rendered choropleth map: {title}")
@@ -269,9 +319,9 @@ def plot_layered_choropleth_map(geojson_data, data, location_col, value_col, fac
     except Exception as e:
         st.error(f"Error rendering choropleth map: {str(e)}")
         logger.error(f"Choropleth map error: {str(e)}")
-        return go.Figure()
+        return None
 
-def render_kpi_card(title, value, icon, status=None, drilldown=False):
+def render_kpi_card(title, value, icon, status=None):
     """
     Render a styled KPI card.
     """
@@ -289,7 +339,6 @@ def render_kpi_card(title, value, icon, status=None, drilldown=False):
                 <div>
                     <h3 class="text-sm font-semibold">{title}</h3>
                     <p class="text-lg font-bold">{value}</p>
-                    {'<a href="#" class="text-blue-600 text-sm">Details</a>' if drilldown else ''}
                 </div>
             </div>
         </div>
