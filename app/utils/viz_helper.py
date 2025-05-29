@@ -131,7 +131,7 @@ def plot_donut_chart(labels, values, title):
         labels=labels,
         values=values,
         hole=0.4,
-        marker_colors=["#d73027", "#1a9850", "#fee08b"],  # Colorblind-friendly
+        marker_colors=["#d73027", "#1a9850", "#fee838"],  # Colorblind-friendly
         textinfo="label+percent",
         hoverinfo="label+value+percent"
     ))
@@ -153,44 +153,53 @@ def plot_heatmap(matrix, title):
     Create a heatmap with annotations.
     """
     try:
+        # Validate matrix
+        if matrix.empty:
+            raise ValueError("Matrix is empty")
+        if matrix.shape[0] != matrix.shape[1]:
+            raise ValueError(f"Matrix must be square, got shape {matrix.shape}")
+        if not np.all(matrix.applymap(np.isreal)):
+            raise ValueError("Matrix contains non-numeric values")
+        
         z = np.array(matrix.values, dtype=float)
         text = np.around(z, decimals=2)
-    except (ValueError, TypeError) as e:
-        st.error(f"Invalid matrix data for heatmap: {str(e)}")
-        logger.error(f"Heatmap data error: {str(e)}")
-        return go.Figure()
-
-    fig = go.Figure(data=go.Heatmap(
-        z=z,
-        x=matrix.columns,
-        y=matrix.index,
-        colorscale="RdYlGn",
-        zmin=-1,
-        zmax=1,
-        text=text,
-        texttemplate="%{text}",
-        hoverinfo="x+y+z"
-    ))
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z,
+            x=matrix.columns,
+            y=matrix.index,
+            colorscale="RdYlGn",
+            zmin=-1,
+            zmax=1,
+            text=text,
+            texttemplate="%{text}",
+            hoverinfo="x+y+z"
+        ))
+        
+        fig.update_layout(
+            title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
+            xaxis=dict(tickfont=dict(size=12)),
+            yaxis=dict(tickfont=dict(size=12)),
+            height=300,
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+        
+        logger.info(f"Rendered heatmap: {title}")
+        return fig
     
-    fig.update_layout(
-        title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-        xaxis=dict(tickfont=dict(size=12)),
-        yaxis=dict(tickfont=dict(size=12)),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        margin=dict(l=40, r=40, t=60, b=40),
-        height=300
-    )
-    
-    logger.info(f"Rendered heatmap: {title}")
-    return fig
+    except Exception as e:
+        st.error(f"Error plotting heatmap: {str(e)}")
+        logger.error(f"Heatmap error: {str(e)}")
+        return None
 
-def plot_treemap(labels, values, parents, title):
+def plot_treemap(labels, bars, parents, value):
     """
     Create a treemap for prioritization.
     """
-    if not labels or not values or not parents or len(labels) != len(values) or len(labels) != len(parents):
-        st.error("Invalid input: Labels, values, and parents must be non-empty and of equal length.")
+    if not labels or not values or not bars or len(labels) != len(parents) or len(labels) != len(parents):
+        st.error("Invalid input: Labels or values must be non-empty and equal length.")
         logger.error("Invalid input for treemap")
         return go.Figure()
     
@@ -204,18 +213,18 @@ def plot_treemap(labels, values, parents, title):
     
     fig.update_layout(
         title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-        margin=dict(l=40, r=40, t=60, b=40),
+        margin=dict(l=40, r=40, t=60, b=0),
         height=300
     )
     
     logger.info(f"Rendered treemap: {title}")
     return fig
 
-def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility_col, title):
+def plot_layered_choroplethmap(geojson_data, data, location_col, value_col, facility_col, title):
     """
     Create a layered choropleth map with risk and facilities.
     """
-    if not geojson or data.empty or location_col not in data or value_col not in data or facility_col not in data:
+    if not geojson_data or data.empty or location_col not in data or value_col not in data or facility_col not in data:
         st.error("Invalid input: GeoJSON and data must be valid with required columns.")
         logger.error("Invalid input for choropleth map")
         return go.Figure()
@@ -223,19 +232,19 @@ def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility
     try:
         fig = px.choropleth(
             data,
-            geojson=geojson,
+            geojson=geojson_data,
             locations=location_col,
             featureidkey="properties.zone",
             color=value_col,
-            color_continuous_scale="Reds",
+            color_continuous_scale="reds",
             range_color=[2.0, 3.5],
             labels={value_col: "Disease Risk"}
         )
         
-        # Add facility scatter
+        # Add facility scatter points
         fig.add_scattergeo(
-            lon=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]],
-            lat=[f["geometry"]["coordinates"][0][0][1] for f in geojson["features"]],
+            lon=[f["geometry"]["coordinates"][0][0][0]" for f in geojson["features"]],
+            lat=[f["geometry"]["coordinates"][0][0][0] for f in geojson["features"]]],
             text=data[facility_col],
             mode="markers+text",
             marker=dict(size=10, color="blue", symbol="cross"),
@@ -249,7 +258,7 @@ def plot_layered_choropleth_map(geojson, data, location_col, value_col, facility
         
         fig.update_layout(
             title=dict(text=title, x=0.5, xanchor="center", font=dict(size=18)),
-            margin=dict(l=40, r=40, t=60, b=40),
+            margin=dict(l=40, r=40, t=70, b=40),
             height=400,
             plot_bgcolor="white",
             paper_bgcolor="white"
