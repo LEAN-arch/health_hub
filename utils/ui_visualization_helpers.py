@@ -8,44 +8,43 @@ import logging
 import plotly.io as pio
 from config import app_config
 import html
-import geopandas as gpd # Ensure gpd is imported here too
+import geopandas as gpd
+import os # For Mapbox token
 
-# Configure logging (ensure it's configured as in previous examples)
+# Configure logging
 logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging.INFO),
                     format=app_config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
+# --- Mapbox Token Setup (CRUCIAL) ---
+MAPBOX_TOKEN_SET = False
+try:
+    MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN")
+    if MAPBOX_ACCESS_TOKEN:
+        px.set_mapbox_access_token(MAPBOX_ACCESS_TOKEN)
+        MAPBOX_TOKEN_SET = True
+        logger.info("Mapbox access token found and set for Plotly Express.")
+    else:
+        logger.warning("MAPBOX_ACCESS_TOKEN environment variable not found. Map styles other than 'open-street-map' may not work.")
+except Exception as e_token:
+    logger.error(f"Error setting Mapbox token: {e_token}")
+
+
 # --- Global Plotly Theme ---
 def set_custom_plotly_theme():
-    custom_theme = go.layout.Template()
-    custom_theme.layout.font = dict(family='-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', size=12, color="#374151")
-    custom_theme.layout.paper_bgcolor = "#FFFFFF"
-    custom_theme.layout.plot_bgcolor = "#FFFFFF"
-    custom_theme.layout.colorway = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#8B5CF6']
-    custom_theme.layout.xaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True)
-    custom_theme.layout.yaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True)
-    custom_theme.layout.title = dict(font_size=16, font_weight='bold', x=0.02, xanchor='left', y=0.95, yanchor='top')
-    custom_theme.layout.legend = dict(bgcolor='rgba(255,255,255,0.8)', bordercolor='#E5E7EB', orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
-    custom_theme.layout.margin = dict(l=60, r=40, t=70, b=60)
-    pio.templates["custom_health_theme"] = custom_theme
-    pio.templates.default = "plotly+custom_health_theme"
+    # ... (Theme definition as provided before - unchanged) ...
+    custom_theme = go.layout.Template(); custom_theme.layout.font = dict(family='-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', size=12, color="#374151"); custom_theme.layout.paper_bgcolor = "#FFFFFF"; custom_theme.layout.plot_bgcolor = "#FFFFFF"; custom_theme.layout.colorway = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#8B5CF6']; custom_theme.layout.xaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True); custom_theme.layout.yaxis = dict(gridcolor="#E5E7EB", linecolor="#D1D5DB", zerolinecolor="#E5E7EB", title_font_size=13, tickfont_size=11, automargin=True); custom_theme.layout.title = dict(font_size=16, font_weight='bold', x=0.02, xanchor='left', y=0.95, yanchor='top'); custom_theme.layout.legend = dict(bgcolor='rgba(255,255,255,0.8)', bordercolor='#E5E7EB', orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1); custom_theme.layout.margin = dict(l=60, r=40, t=70, b=60); pio.templates["custom_health_theme"] = custom_theme; pio.templates.default = "plotly+custom_health_theme"
 set_custom_plotly_theme()
 
 # --- Styled Components ---
 def render_kpi_card(title, value, icon, status=None, delta=None, delta_type="neutral", help_text=None):
-    status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}
-    status_final_class = status_class_map.get(status, "")
-    delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(str(delta))}</p>' if delta else ""
-    tooltip_html = f'title="{html.escape(str(help_text))}"' if help_text else ''
-    html_content = f"""<div class="kpi-card {status_final_class}" {tooltip_html}> <div class="kpi-card-header"> <span class="kpi-icon">{icon}</span> <h3 class="kpi-title">{html.escape(str(title))}</h3> </div> <div> <p class="kpi-value">{html.escape(str(value))}</p> {delta_html} </div></div>""".strip()
-    st.markdown(html_content, unsafe_allow_html=True)
+    # ... (Function as provided before - unchanged) ...
+    status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low"}; status_final_class = status_class_map.get(status, ""); delta_html = f'<p class="kpi-delta {delta_type}">{html.escape(str(delta))}</p>' if delta else ""; tooltip_html = f'title="{html.escape(str(help_text))}"' if help_text else ''; html_content = f"""<div class="kpi-card {status_final_class}" {tooltip_html}> <div class="kpi-card-header"> <span class="kpi-icon">{icon}</span> <h3 class="kpi-title">{html.escape(str(title))}</h3> </div> <div> <p class="kpi-value">{html.escape(str(value))}</p> {delta_html} </div></div>""".strip(); st.markdown(html_content, unsafe_allow_html=True)
 
 def render_traffic_light(message, status, details=""):
-    status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low", "Neutral": "status-neutral"}
-    dot_status_class = status_class_map.get(status, "status-neutral")
-    details_html = f'<span class="traffic-light-details">{html.escape(str(details))}</span>' if details else ""
-    html_content = f"""<div class="traffic-light-indicator"> <span class="traffic-light-dot {dot_status_class}"></span> <span class="traffic-light-message">{html.escape(str(message))}</span> {details_html}</div>""".strip()
-    st.markdown(html_content, unsafe_allow_html=True)
+    # ... (Function as provided before - unchanged) ...
+    status_class_map = {"High": "status-high", "Moderate": "status-moderate", "Low": "status-low", "Neutral": "status-neutral"}; dot_status_class = status_class_map.get(status, "status-neutral"); details_html = f'<span class="traffic-light-details">{html.escape(str(details))}</span>' if details else ""; html_content = f"""<div class="traffic-light-indicator"> <span class="traffic-light-dot {dot_status_class}"></span> <span class="traffic-light-message">{html.escape(str(message))}</span> {details_html}</div>""".strip(); st.markdown(html_content, unsafe_allow_html=True)
+
 
 # --- Plotting Functions ---
 def plot_layered_choropleth_map(
@@ -66,164 +65,142 @@ def plot_layered_choropleth_map(
     mapbox_style: str = "carto-positron"
 ):
     height = height if height is not None else app_config.MAP_PLOT_HEIGHT
-    logger.debug(f"--- Plotting Choropleth: {title} ---")
-    logger.debug(f"Input GDF shape: {gdf.shape if gdf is not None else 'None'}")
-    logger.debug(f"Value column: {value_col}, ID column: {id_col}, Feature ID Key Prop: {featureidkey_prop}")
+    logger.info(f"--- Attempting to plot Choropleth Map: '{title}' ---")
+    logger.debug(f"Input GDF type: {type(gdf)}, shape: {gdf.shape if gdf is not None else 'None'}")
+    logger.debug(f"Params: value_col='{value_col}', id_col='{id_col}', featureidkey_prop='{featureidkey_prop}'")
+    logger.debug(f"Mapbox style: '{mapbox_style}', Token set: {MAPBOX_TOKEN_SET}")
 
-    # 1. Validate base GeoDataFrame (gdf)
-    if gdf is None or gdf.empty:
-        logger.warning(f"Input GeoDataFrame for '{title}' is None or empty.")
+    # A. Input Validation (Strict)
+    if not isinstance(gdf, gpd.GeoDataFrame) or gdf.empty:
+        logger.error(f"MAP_ERROR ({title}): Input 'gdf' is not a valid or non-empty GeoDataFrame.")
         return go.Figure().update_layout(title_text=f"{title} (No geographic data)", height=height, annotations=[dict(text="Map data unavailable", xref="paper", yref="paper", showarrow=False)])
 
-    geometry_col_name = gdf.geometry.name # Get the actual name of the geometry column
-    if geometry_col_name not in gdf.columns: # Check if the geometry column exists
-        logger.error(f"Active geometry column '{geometry_col_name}' not found in GeoDataFrame for '{title}'. Available columns: {gdf.columns.tolist()}")
-        return go.Figure().update_layout(title_text=f"{title} (Missing geometry column)", height=height, annotations=[dict(text="Map configuration error", xref="paper", yref="paper", showarrow=False)])
+    active_geom_col = gdf.geometry.name
+    if active_geom_col not in gdf.columns:
+        logger.error(f"MAP_ERROR ({title}): Active geometry column '{active_geom_col}' not found in gdf.")
+        return go.Figure().update_layout(title_text=f"{title} (Missing geometry column)", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
 
-    # gdf.geometry.is_empty is a boolean Series. .all() checks if all are True.
-    if gdf.geometry.is_empty.all(): # CORRECTED CHECK
-        logger.error(f"All geometries are empty in GDF for '{title}'. Cannot plot map.")
+    if gdf.geometry.is_empty.all():
+        logger.error(f"MAP_ERROR ({title}): All geometries in gdf are empty.")
         return go.Figure().update_layout(title_text=f"{title} (All Geometries Empty)", height=height, annotations=[dict(text="Map geometry error", xref="paper", yref="paper", showarrow=False)])
+    
+    if id_col not in gdf.columns:
+        logger.error(f"MAP_ERROR ({title}): ID column '{id_col}' not found in gdf.")
+        return go.Figure().update_layout(title_text=f"{title} (Missing ID column: {id_col})", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
+
+    if value_col not in gdf.columns:
+        logger.error(f"MAP_ERROR ({title}): Value column '{value_col}' not found in gdf.")
+        return go.Figure().update_layout(title_text=f"{title} (Missing value column: {value_col})", height=height, annotations=[dict(text="Map config error", xref="paper", yref="paper", showarrow=False)])
 
     gdf_plot = gdf.copy() # Work on a copy
 
-    if id_col not in gdf_plot.columns:
-        logger.error(f"ID column '{id_col}' not found in GeoDataFrame for '{title}'.")
-        return go.Figure().update_layout(title_text=f"{title} (Missing ID column: {id_col})", height=height, annotations=[dict(text="Map configuration error", xref="paper", yref="paper", showarrow=False)])
-    if value_col not in gdf_plot.columns:
-        logger.error(f"Value column '{value_col}' not found in GeoDataFrame for '{title}'.")
-        return go.Figure().update_layout(title_text=f"{title} (Missing value column: {value_col})", height=height, annotations=[dict(text="Map configuration error", xref="paper", yref="paper", showarrow=False)])
-
-    # 2. Validate and prepare value_col for coloring
+    # B. Prepare Value Column for Coloring
     if not pd.api.types.is_numeric_dtype(gdf_plot[value_col]):
-        logger.info(f"Value column '{value_col}' in '{title}' is not numeric. Attempting conversion.")
+        logger.info(f"Value column '{value_col}' for '{title}' is not numeric. Attempting conversion.")
         gdf_plot[value_col] = pd.to_numeric(gdf_plot[value_col], errors='coerce')
 
     if gdf_plot[value_col].isnull().all():
-        logger.warning(f"All values in '{value_col}' are NaN after conversion for map '{title}'. Map may appear blank or uniform.")
+        logger.warning(f"All values in '{value_col}' for '{title}' are NaN. Map will show shapes but no color variation.")
+        # Fill with a placeholder if you want to ensure colors, but this might be misleading.
+        # gdf_plot[value_col] = gdf_plot[value_col].fillna(0) # Example: fill to show shapes
 
-    # 3. Prepare GeoJSON interface for Plotly
+    # C. Prepare GeoJSON for Plotly (only from valid, non-empty geometries)
+    # Plotly might struggle with invalid geometries in __geo_interface__
+    gdf_for_geojson = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
+    if gdf_for_geojson.empty:
+        logger.error(f"MAP_ERROR ({title}): No valid, non-empty geometries left after filtering.")
+        return go.Figure().update_layout(title_text=f"{title} (No valid geometries)", height=height, annotations=[dict(text="Map geometry processing error", xref="paper", yref="paper", showarrow=False)])
+    
     try:
-        # Ensure only valid geometries are converted to GeoJSON interface if some are bad
-        valid_geom_gdf = gdf_plot[gdf_plot.geometry.is_valid & ~gdf_plot.geometry.is_empty]
-        if valid_geom_gdf.empty:
-            logger.error(f"No valid, non-empty geometries to generate GeoJSON features from GDF for '{title}'.")
-            return go.Figure().update_layout(title_text=f"{title} (No valid geometries)", height=height, annotations=[dict(text="Map geometry processing error", xref="paper", yref="paper", showarrow=False)])
-        
-        geojson_interface = valid_geom_gdf.geometry.__geo_interface__
-        
-        if not geojson_interface or not geojson_interface.get("features"): # Should not happen if valid_geom_gdf not empty
-            logger.error(f"Failed to generate valid GeoJSON features from GDF for '{title}' (even after filtering).")
-            return go.Figure().update_layout(title_text=f"{title} (GeoJSON generation error)", height=height, annotations=[dict(text="Map geometry processing error", xref="paper", yref="paper", showarrow=False)])
-        
-        # Log based on gdf_plot for linking, as it contains all original rows for data matching
-        if geojson_interface['features']:
-             logger.debug(f"Sample GeoJSON feature for linking (properties.{featureidkey_prop}): {geojson_interface['features'][0]['properties'].get(featureidkey_prop)}")
+        geojson_interface = gdf_for_geojson.geometry.__geo_interface__
+        logger.debug(f"GeoJSON interface created. Number of features: {len(geojson_interface.get('features', []))}")
+        if geojson_interface.get('features'):
+             logger.debug(f"First feature for linking (properties.{featureidkey_prop}): {geojson_interface['features'][0]['properties'].get(featureidkey_prop)}")
         logger.debug(f"Sample of GDF ID column ('{id_col}') values for linking: {gdf_plot[id_col].unique()[:3]}")
-
     except Exception as e_geojson:
-        logger.error(f"Error creating GeoJSON interface for '{title}': {e_geojson}", exc_info=True)
+        logger.error(f"MAP_ERROR ({title}): Error creating GeoJSON interface: {e_geojson}", exc_info=True)
         return go.Figure().update_layout(title_text=f"{title} (GeoJSON interface error)", height=height, annotations=[dict(text="Map geometry error", xref="paper", yref="paper", showarrow=False)])
 
-    # 4. Determine hover data
-    default_hover_cols = ['name', 'population', value_col]
+
+    # D. Determine Hover Data
+    default_hover_cols = ['name', 'population', value_col] # Ensure 'name' and 'population' exist if used
     final_hover_cols = [col for col in (hover_cols if hover_cols else default_hover_cols) if col in gdf_plot.columns]
     logger.debug(f"Hover columns for '{title}': {final_hover_cols}")
 
-    # 5. Prepare Mapbox layout arguments (center, zoom, style)
-    px_mapbox_func_args = {"mapbox_style": mapbox_style} # Arguments for the px.choropleth_mapbox function call
-    
+    # E. Prepare Mapbox Call Arguments
+    # If Mapbox token is not set and a token-required style is chosen, default to "open-street-map"
+    current_mapbox_style = mapbox_style
+    if not MAPBOX_TOKEN_SET and mapbox_style not in ["open-street-map", "stamen-terrain", "stamen-toner", "stamen-watercolor"]: # These are generally token-free
+        logger.warning(f"Mapbox token not set, and style '{mapbox_style}' likely requires one. Defaulting to 'open-street-map' for '{title}'.")
+        current_mapbox_style = "open-street-map"
+
+    px_func_args = {"mapbox_style": current_mapbox_style}
     if center_lat is not None and center_lon is not None:
-        px_mapbox_func_args["center"] = {"lat": center_lat, "lon": center_lon}
-        px_mapbox_func_args["zoom"] = zoom_level if zoom_level is not None else app_config.MAP_DEFAULT_ZOOM
-        logger.debug(f"Using explicit center/zoom for '{title}': Center=({center_lat},{center_lon}), Zoom={px_mapbox_func_args['zoom']}")
+        px_func_args["center"] = {"lat": center_lat, "lon": center_lon}
+        px_func_args["zoom"] = zoom_level if zoom_level is not None else app_config.MAP_DEFAULT_ZOOM
+        logger.debug(f"Using explicit center/zoom for '{title}': Center=({center_lat},{center_lon}), Zoom={px_func_args['zoom']}")
     elif zoom_level is not None:
-        px_mapbox_func_args["zoom"] = zoom_level
+        px_func_args["zoom"] = zoom_level
         logger.debug(f"Using explicit zoom for '{title}': {zoom_level}. Center will be auto by Plotly.")
-    else:
-        px_mapbox_func_args["fitbounds"] = "locations"
+    else: # Default: use fitbounds if no explicit center or zoom is given
+        px_func_args["fitbounds"] = "locations"
         logger.debug(f"Using 'fitbounds=locations' for '{title}'.")
 
-    # 6. Create the choropleth figure
+
+    # F. Create Choropleth Figure
+    logger.info(f"Attempting to create choropleth_mapbox for '{title}' with args: {px_func_args}")
     try:
-        # Pass gdf_plot (which has all rows, potentially with NaN in value_col)
-        # but use geojson_interface from valid_geom_gdf for geometries.
-        # Plotly links based on 'locations' and 'featureidkey'.
         fig = px.choropleth_mapbox(
-            gdf_plot, # Data comes from all rows of gdf_plot
-            geojson=geojson_interface, # Geometries come from valid ones
-            locations=gdf_plot[id_col], 
+            gdf_plot, # Data comes from all rows, including those with potentially NaN color values
+            geojson=geojson_interface, # Geometries are from valid_geom_gdf
+            locations=gdf_plot[id_col],
             featureidkey=f"properties.{featureidkey_prop}",
             color=value_col,
             color_continuous_scale=color_continuous_scale,
             opacity=0.75,
             hover_name="name" if "name" in gdf_plot.columns else id_col,
             hover_data=final_hover_cols,
-            labels={value_col: value_col.replace('_',' ').title()},
-            **px_mapbox_func_args
+            labels={col: col.replace('_',' ').title() for col in [value_col] + final_hover_cols}, # Better labels
+            **px_func_args
         )
-    except Exception as e_px: 
-        logger.error(f"Error during px.choropleth_mapbox creation for '{title}': {e_px}", exc_info=True)
-        # Fallback to OpenStreetMap if it was a token issue for other styles
-        if mapbox_style != "open-street-map" and "token" in str(e_px).lower(): # Basic check for token error
-            logger.info(f"Retrying '{title}' with mapbox_style='open-street-map' due to potential token error.")
-            px_mapbox_func_args["mapbox_style"] = "open-street-map" 
-            try:
-                 fig = px.choropleth_mapbox(
-                    gdf_plot, geojson=geojson_interface, locations=gdf_plot[id_col],
-                    featureidkey=f"properties.{featureidkey_prop}", color=value_col,
-                    color_continuous_scale=color_continuous_scale, opacity=0.75,
-                    hover_name="name" if "name" in gdf_plot.columns else id_col,
-                    hover_data=final_hover_cols, labels={value_col: value_col.replace('_',' ').title()},
-                    **px_mapbox_func_args)
-            except Exception as e_px_retry: # pragma: no cover
-                logger.error(f"Retry with OpenStreetMap also failed for '{title}': {e_px_retry}", exc_info=True)
-                return go.Figure().update_layout(title_text=f"{title} (Map rendering error)", height=height, annotations=[dict(text="Error creating map", xref="paper", yref="paper", showarrow=False)])
-        else: # Already was OpenStreetMap or other unrecoverable error
-            return go.Figure().update_layout(title_text=f"{title} (Map rendering error)", height=height, annotations=[dict(text="Error creating map", xref="paper", yref="paper", showarrow=False)])
+    except Exception as e_px:
+        logger.error(f"MAP_ERROR ({title}): Error during px.choropleth_mapbox: {e_px}", exc_info=True)
+        st.error(f"Could not render map '{title}'. Check logs for details. Error: {e_px}")
+        return go.Figure().update_layout(title_text=f"{title} (Map Rendering Error)", height=height, annotations=[dict(text="Error creating map visual", xref="paper", yref="paper", showarrow=False)])
 
-    # 7. Add facility markers if provided
+    # G. Add Facility Markers
     if facility_gdf is not None and not facility_gdf.empty and 'geometry' in facility_gdf.columns:
+        # ... (Facility marker logic as previously provided, ensure it's robust) ...
         facility_gdf_points = facility_gdf[facility_gdf.geometry.geom_type == 'Point'].copy()
         if not facility_gdf_points.empty:
             size_data = 8; hover_text_data = "Facility" 
             if facility_size_col and facility_size_col in facility_gdf_points.columns and pd.api.types.is_numeric_dtype(facility_gdf_points[facility_size_col]):
-                min_s, max_s_px = 4, 15 # Renamed max_s to avoid conflict
+                min_s, max_s_px = 4, 15 
                 s_min_val, s_max_val = facility_gdf_points[facility_size_col].min(), facility_gdf_points[facility_size_col].max()
                 if pd.notna(s_min_val) and pd.notna(s_max_val) and s_max_val > s_min_val : 
                     range_s = s_max_val - s_min_val
-                    # Ensure size_data is a Series/array if facility_gdf_points[facility_size_col] is
                     if isinstance(facility_gdf_points[facility_size_col], pd.Series):
                         size_data = min_s + ((facility_gdf_points[facility_size_col] - s_min_val) * (max_s_px - min_s) / range_s)
-                        size_data = size_data.fillna(8) # Fill NaNs if any from calculation
-                    else: # Scalar case
-                        size_data = min_s + ((facility_gdf_points[facility_size_col] - s_min_val) * (max_s_px - min_s) / range_s)
-
-                elif pd.notna(s_max_val) and s_max_val == s_min_val: 
-                    size_data = (min_s + max_s_px) / 2
-            
-            if facility_hover_name and facility_hover_name in facility_gdf_points.columns: 
-                hover_text_data = facility_gdf_points[facility_hover_name]
-            
-            fig.add_trace(go.Scattermapbox(
-                lon=facility_gdf_points.geometry.x, lat=facility_gdf_points.geometry.y, mode='markers', 
-                marker=go.scattermapbox.Marker(size=size_data, sizemin=4, color='#1E3A8A', opacity=0.85, allowoverlap=True), 
-                text=hover_text_data, hoverinfo='text', name='Health Facilities'
-            ))
+                        size_data = size_data.fillna(8) 
+                    else: size_data = min_s + ((facility_gdf_points[facility_size_col] - s_min_val) * (max_s_px - min_s) / range_s)
+                elif pd.notna(s_max_val) and s_max_val == s_min_val: size_data = (min_s + max_s_px) / 2
+            if facility_hover_name and facility_hover_name in facility_gdf_points.columns: hover_text_data = facility_gdf_points[facility_hover_name]
+            fig.add_trace(go.Scattermapbox(lon=facility_gdf_points.geometry.x, lat=facility_gdf_points.geometry.y, mode='markers', marker=go.scattermapbox.Marker(size=size_data, sizemin=4, color='#1E3A8A', opacity=0.85, allowoverlap=True), text=hover_text_data, hoverinfo='text', name='Health Facilities'))
         else: logger.debug(f"Facility GDF for '{title}' provided but contains no Point geometries.")
 
 
-    # 8. Final layout updates
+    # H. Final Layout Updates
     fig.update_layout(
         title_text=title,
         height=height,
-        margin={"r":5,"t":45,"l":5,"b":5}, 
+        margin={"r":5,"t":45,"l":5,"b":5},
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255,255,255,0.6)')
     )
-    logger.info(f"Successfully rendered choropleth map: {title}")
+    logger.info(f"Successfully configured choropleth map: {title}")
     return fig
 
-# ... (Other plotting functions: plot_annotated_line_chart, plot_bar_chart, plot_donut_chart, plot_heatmap as previously provided) ...
+# ... (Rest of your plotting functions: plot_annotated_line_chart, plot_bar_chart, etc. as previously provided) ...
+# ... (Make sure they are complete and correct from the previous responses) ...
 def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=None,
                               target_line=None, target_label=None, show_ci=False,
                               lower_bound_series=None, upper_bound_series=None,
@@ -299,7 +276,6 @@ def plot_annotated_line_chart(data_series, title, y_axis_title="Value", color=No
     )
     return fig
 
-
 def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
                    orientation='v', y_axis_title=None, x_axis_title=None, height=None,
                    text_auto=True, sort_values_by=None, ascending=True):
@@ -331,7 +307,6 @@ def plot_bar_chart(df, x_col, y_col, title, color_col=None, barmode='group',
     
     return fig
 
-
 def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
     height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 20
     if data_df.empty or labels_col not in data_df.columns or values_col not in data_df.columns:
@@ -348,7 +323,6 @@ def plot_donut_chart(data_df, labels_col, values_col, title, height=None):
     fig.update_layout(title_text=title, height=height, showlegend=True, 
                       legend=dict(orientation="v", yanchor="top", y=0.9, xanchor="right", x=1.1))
     return fig
-
 
 def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
     height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 70
@@ -386,8 +360,7 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
         if not matrix_for_min_max.empty:
             min_val_series = matrix_for_min_max.min()
             max_val_series = matrix_for_min_max.max()
-            # Ensure series are not empty before calling .min() / .max() on them
-            if not min_val_series.empty and not max_val_series.empty:
+            if not min_val_series.empty and not max_val_series.empty: # Ensure series are not all NaNs
                  min_val = min_val_series.min()
                  max_val = max_val_series.max()
                  if pd.notna(min_val) and pd.notna(max_val) and min_val < 0 and max_val > 0:
@@ -404,10 +377,6 @@ def plot_heatmap(matrix_df, title, height=None, colorscale="RdBu_r", zmid=0):
         hoverongaps=False, xgap=1, ygap=1,
         colorbar=dict(thickness=15, len=0.75, tickfont_size=10)
     ))
-    
-    fig.update_layout(title_text=title, height=height, xaxis_showgrid=False, yaxis_showgrid=False, 
-                      xaxis_tickangle=-30 if len(numeric_matrix_df.columns) > 5 else 0, yaxis_autorange='reversed')
-    return fig
     
     fig.update_layout(title_text=title, height=height, xaxis_showgrid=False, yaxis_showgrid=False, 
                       xaxis_tickangle=-30 if len(numeric_matrix_df.columns) > 5 else 0, yaxis_autorange='reversed')
