@@ -3,33 +3,33 @@ import streamlit as st
 import pandas as pd
 import os
 import logging
-import numpy as np # Added for potential np.nan usage
-from config import app_config # Centralized configuration
+import numpy as np 
+from config import app_config 
 from utils.core_data_processing import (
-    load_health_records, load_iot_clinic_environment_data, # Robust data loaders
-    get_clinic_summary, get_clinic_environmental_summary,    # KPI calculators
-    get_trend_data, get_supply_forecast_data, get_patient_alerts_for_clinic # Analytics functions
+    load_health_records, load_iot_clinic_environment_data, 
+    get_clinic_summary, get_clinic_environmental_summary,    
+    get_trend_data, get_supply_forecast_data, get_patient_alerts_for_clinic 
 )
 from utils.ui_visualization_helpers import (
-    render_kpi_card, plot_donut_chart, plot_annotated_line_chart, plot_bar_chart # Plotting helpers
+    render_kpi_card, plot_donut_chart, plot_annotated_line_chart, plot_bar_chart 
 )
 
 # --- Page Configuration and Styling ---
 st.set_page_config(page_title="Clinic Dashboard - Health Hub", layout="wide", initial_sidebar_state="expanded")
-logger = logging.getLogger(__name__) # Logger for this page
+logger = logging.getLogger(__name__) 
 
-@st.cache_resource # Cache CSS loading
-def load_css(): # pragma: no cover
-    if os.path.exists(app_config.STYLE_CSS):
-        with open(app_config.STYLE_CSS) as f:
+@st.cache_resource 
+def load_css(): 
+    if os.path.exists(app_config.STYLE_CSS_PATH):
+        with open(app_config.STYLE_CSS_PATH) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
             logger.info("Clinic Dashboard: CSS loaded successfully.")
     else:
-        logger.warning(f"Clinic Dashboard: CSS file not found at {app_config.STYLE_CSS}. Default Streamlit styles will be used.")
+        logger.warning(f"Clinic Dashboard: CSS file not found at {app_config.STYLE_CSS_PATH}. Default Streamlit styles will be used.")
 load_css()
 
 # --- Data Loading ---
-@st.cache_data(ttl=app_config.CACHE_TTL_SECONDS) # Cache data loading
+@st.cache_data(ttl=app_config.CACHE_TTL_SECONDS) 
 def get_clinic_dashboard_data():
     logger.info("Clinic Dashboard: Attempting to load health records and IoT data...")
     health_df = load_health_records()
@@ -67,96 +67,99 @@ st.markdown("**Monitoring Service Efficiency, Quality of Care, Resource Manageme
 st.markdown("---")
 
 # --- Sidebar Filters & Date Range Setup ---
-st.sidebar.header("🗓️ Clinic Filters")
+st.sidebar.header("🗓️ Clinic Filters") 
 
-all_potential_dates = [] 
+list_of_all_potential_datetime_series = []
 
-if 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
-    if pd.api.types.is_list_like(health_df_clinic_main['date']):
-        s_health_dates = pd.to_datetime(pd.Series(health_df_clinic_main['date']), errors='coerce')
-        valid_health_timestamps = s_health_dates.dropna() 
-        if not valid_health_timestamps.empty:
-            all_potential_dates.extend(valid_health_timestamps.tolist())
+if health_df_clinic_main is not None and 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
+    health_dates_series = pd.Series(health_df_clinic_main['date'])
+    converted_health_dates = pd.to_datetime(health_dates_series, errors='coerce')
+    valid_health_timestamps = converted_health_dates.dropna() 
+    if not valid_health_timestamps.empty:
+        list_of_all_potential_datetime_series.append(valid_health_timestamps)
 
-if 'timestamp' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
-    if pd.api.types.is_list_like(iot_df_clinic_main['timestamp']):
-        s_iot_timestamps = pd.to_datetime(pd.Series(iot_df_clinic_main['timestamp']), errors='coerce')
-        valid_iot_timestamps = s_iot_timestamps.dropna()
-        if not valid_iot_timestamps.empty:
-            all_potential_dates.extend(valid_iot_timestamps.tolist())
+if iot_df_clinic_main is not None and 'timestamp' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
+    iot_timestamps_series = pd.Series(iot_df_clinic_main['timestamp'])
+    converted_iot_timestamps = pd.to_datetime(iot_timestamps_series, errors='coerce')
+    valid_iot_timestamps = converted_iot_timestamps.dropna()
+    if not valid_iot_timestamps.empty:
+        list_of_all_potential_datetime_series.append(valid_iot_timestamps)
 
-all_valid_timestamps_final = [d for d in all_potential_dates if isinstance(d, pd.Timestamp)]
-
-if not all_valid_timestamps_final:
+if list_of_all_potential_datetime_series:
+    combined_valid_timestamps = pd.concat(list_of_all_potential_datetime_series, ignore_index=True).drop_duplicates() # Ensure unique timestamps
+    if not combined_valid_timestamps.empty:
+        min_date_ts = combined_valid_timestamps.min() 
+        max_date_ts = combined_valid_timestamps.max() 
+        
+        min_date_data_clinic = min_date_ts.date()
+        max_date_data_clinic = max_date_ts.date()
+    else: 
+        min_date_data_clinic = pd.Timestamp('today').date() - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND * 3)
+        max_date_data_clinic = pd.Timestamp('today').date()
+        logger.warning("Clinic Dashboard: No valid Timestamps after concatenation for date filter. Using wide fallback.")
+else: 
     min_date_data_clinic = pd.Timestamp('today').date() - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND * 3)
     max_date_data_clinic = pd.Timestamp('today').date()
-    logger.warning("Clinic Dashboard: No valid Timestamp objects found in any dataset for filter range. Using wide fallback.")
-else:
-    min_date_ts = min(all_valid_timestamps_final) 
-    max_date_ts = max(all_valid_timestamps_final) 
-    
-    min_date_data_clinic = min_date_ts.date()
-    max_date_data_clinic = max_date_ts.date()
+    logger.warning("Clinic Dashboard: No date columns with valid data found in any dataset for filter range. Using wide fallback.")
+
 
 default_start_date_clinic = max_date_data_clinic - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND - 1)
 if default_start_date_clinic < min_date_data_clinic : default_start_date_clinic = min_date_data_clinic
 if default_start_date_clinic > max_date_data_clinic : default_start_date_clinic = max_date_data_clinic
+
 
 selected_start_date_cl, selected_end_date_cl = st.sidebar.date_input(
     "Select Date Range for Analysis:",
     value=[default_start_date_clinic, max_date_data_clinic],
     min_value=min_date_data_clinic,
     max_value=max_date_data_clinic,
-    key="clinic_dashboard_date_range_selector_v8_final", # Incremented key for safety
-    help="This date range applies to most charts and Key Performance Indicators (KPIs) unless specified otherwise."
+    key="clinic_dashboard_date_range_selector_v11_final", # Incremented key
+    help="This date range applies to most charts and Key Performance Indicators (KPIs)."
 )
 
 # --- Filter dataframes based on selected date range ---
 filtered_health_df_clinic = pd.DataFrame(columns=health_df_clinic_main.columns)
-if selected_start_date_cl and selected_end_date_cl and 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
-    if not pd.api.types.is_datetime64_ns_dtype(health_df_clinic_main['date']):
-         health_df_clinic_main['date'] = pd.to_datetime(health_df_clinic_main['date'], errors='coerce')
+if selected_start_date_cl and selected_end_date_cl and health_df_clinic_main is not None and 'date' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
+    temp_health_df_filter = health_df_clinic_main.copy()
+    if not pd.api.types.is_datetime64_ns_dtype(temp_health_df_filter['date']):
+         temp_health_df_filter['date'] = pd.to_datetime(temp_health_df_filter['date'], errors='coerce')
     
-    if pd.api.types.is_datetime64_ns_dtype(health_df_clinic_main['date']):
-        date_col_is_date_obj_type_health = False
-        if 'date_obj' in health_df_clinic_main.columns and not health_df_clinic_main.empty:
-            first_valid_date_obj_health = health_df_clinic_main['date_obj'].dropna().iloc[0] if not health_df_clinic_main['date_obj'].dropna().empty else None
-            if first_valid_date_obj_health is not None and isinstance(first_valid_date_obj_health, pd.Timestamp.date().__class__):
-                date_col_is_date_obj_type_health = True
-        
-        if not date_col_is_date_obj_type_health: # If 'date_obj' doesn't exist or is not date type
-            health_df_clinic_main['date_obj'] = health_df_clinic_main['date'].dt.date 
-        
-        valid_date_obj_mask_health = health_df_clinic_main['date_obj'].notna()
-        date_range_mask_health = (health_df_clinic_main['date_obj'] >= selected_start_date_cl) & (health_df_clinic_main['date_obj'] <= selected_end_date_cl)
-        filtered_health_df_clinic = health_df_clinic_main[valid_date_obj_mask_health & date_range_mask_health].copy()
-
+    temp_health_df_filter.dropna(subset=['date'], inplace=True) # Drop rows if date conversion failed
+    if not temp_health_df_filter.empty:
+        temp_health_df_filter['date_obj_for_filter'] = temp_health_df_filter['date'].dt.date
+        health_mask = (temp_health_df_filter['date_obj_for_filter'] >= selected_start_date_cl) & \
+                      (temp_health_df_filter['date_obj_for_filter'] <= selected_end_date_cl)
+        filtered_health_df_clinic = temp_health_df_filter[health_mask].copy()
+        logger.info(f"Clinic Health Data: Filtered from {selected_start_date_cl} to {selected_end_date_cl}, resulting in {len(filtered_health_df_clinic)} rows.")
+        if filtered_health_df_clinic.empty:
+            logger.warning(f"Clinic Health Data Filter resulted in 0 rows. Original before filter: {len(temp_health_df_filter)}. Date range: {selected_start_date_cl} to {selected_end_date_cl}.")
 
 filtered_iot_df_clinic = pd.DataFrame(columns=iot_df_clinic_main.columns)
-if selected_start_date_cl and selected_end_date_cl and 'timestamp' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
-    if not pd.api.types.is_datetime64_ns_dtype(iot_df_clinic_main['timestamp']):
-        iot_df_clinic_main['timestamp'] = pd.to_datetime(iot_df_clinic_main['timestamp'], errors='coerce')
+if selected_start_date_cl and selected_end_date_cl and iot_df_clinic_main is not None and 'timestamp' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
+    temp_iot_df_filter = iot_df_clinic_main.copy()
+    if not pd.api.types.is_datetime64_ns_dtype(temp_iot_df_filter['timestamp']):
+        temp_iot_df_filter['timestamp'] = pd.to_datetime(temp_iot_df_filter['timestamp'], errors='coerce')
     
-    if pd.api.types.is_datetime64_ns_dtype(iot_df_clinic_main['timestamp']):
-        date_col_is_date_obj_type_iot = False
-        if 'date_obj' in iot_df_clinic_main.columns and not iot_df_clinic_main.empty:
-            first_valid_date_obj_iot = iot_df_clinic_main['date_obj'].dropna().iloc[0] if not iot_df_clinic_main['date_obj'].dropna().empty else None
-            if first_valid_date_obj_iot is not None and isinstance(first_valid_date_obj_iot, pd.Timestamp.date().__class__):
-                 date_col_is_date_obj_type_iot = True
-
-        if not date_col_is_date_obj_type_iot:
-             iot_df_clinic_main['date_obj'] = iot_df_clinic_main['timestamp'].dt.date
-        
-        valid_date_obj_mask_iot = iot_df_clinic_main['date_obj'].notna()
-        date_range_mask_iot = (iot_df_clinic_main['date_obj'] >= selected_start_date_cl) & (iot_df_clinic_main['date_obj'] <= selected_end_date_cl)
-        filtered_iot_df_clinic = iot_df_clinic_main[valid_date_obj_mask_iot & date_range_mask_iot].copy()
-
+    temp_iot_df_filter.dropna(subset=['timestamp'], inplace=True)
+    if not temp_iot_df_filter.empty:
+        temp_iot_df_filter['date_obj_for_filter'] = temp_iot_df_filter['timestamp'].dt.date
+        iot_mask = (temp_iot_df_filter['date_obj_for_filter'] >= selected_start_date_cl) & \
+                   (temp_iot_df_filter['date_obj_for_filter'] <= selected_end_date_cl)
+        filtered_iot_df_clinic = temp_iot_df_filter[iot_mask].copy()
+        logger.info(f"Clinic IoT Data: Filtered from {selected_start_date_cl} to {selected_end_date_cl}, resulting in {len(filtered_iot_df_clinic)} rows.")
+        if filtered_iot_df_clinic.empty:
+            logger.warning(f"Clinic IoT Data Filter resulted in 0 rows. Original before filter: {len(temp_iot_df_filter)}. Date range: {selected_start_date_cl} to {selected_end_date_cl}.")
 
 # --- Display KPIs ---
 date_range_display_str = f"({selected_start_date_cl.strftime('%d %b %Y')} - {selected_end_date_cl.strftime('%d %b %Y')})" if selected_start_date_cl and selected_end_date_cl else "(Date range not fully set)"
 
 st.subheader(f"Key Disease Service Metrics {date_range_display_str}")
+if filtered_health_df_clinic.empty:
+    logger.warning("Cannot calculate Clinic Service KPIs as filtered_health_df_clinic is empty.")
+    st.info("No health data available for the selected period to display service metrics.")
 clinic_service_kpis = get_clinic_summary(filtered_health_df_clinic)
+logger.debug(f"Clinic Service KPIs calculated for period: {clinic_service_kpis}")
+
 
 kpi_cols_clinic_services = st.columns(5)
 with kpi_cols_clinic_services[0]:
@@ -188,6 +191,8 @@ with kpi_cols_clinic_services[4]:
 if not filtered_iot_df_clinic.empty:
     st.subheader(f"Clinic Environment Snapshot {date_range_display_str}")
     clinic_env_kpis = get_clinic_environmental_summary(filtered_iot_df_clinic)
+    logger.debug(f"Clinic Env KPIs calculated: {clinic_env_kpis}")
+
 
     kpi_cols_clinic_environment = st.columns(4)
     with kpi_cols_clinic_environment[0]:
@@ -213,6 +218,9 @@ if not filtered_iot_df_clinic.empty:
         render_kpi_card("Noise Alerts", str(avg_noise_alert_rooms_val), "🔊",
                         status="High" if avg_noise_alert_rooms_val > 0 else "Low",
                         help_text=f"Rooms with latest noise levels > {app_config.NOISE_LEVEL_ALERT_DB}dB.")
+else:
+    st.info("IoT data for the selected period is empty. Environmental KPIs cannot be displayed.")
+
 st.markdown("---")
 
 tab_titles_clinic = [
@@ -280,7 +288,7 @@ with tab_supplies:
             else:
                 selected_drug_for_forecast = st.selectbox(
                     "Select Key Drug for Forecast Details:", key_drug_items_for_select,
-                    key="clinic_supply_item_forecast_selector_final_v3", 
+                    key="clinic_supply_item_forecast_selector_final_v5", 
                     help="View the forecasted days of supply remaining for the selected drug."
                 )
                 if selected_drug_for_forecast:
