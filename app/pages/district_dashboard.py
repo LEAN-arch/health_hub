@@ -18,11 +18,11 @@ mock_data = {
     "anomaly": {"message": "Respiratory Spike", "status": "High", "confidence": 95, "action": "Investigate Zone C"},
     "action_trend": [1.5, 1.4, 1.2, 1.1, 1.0, 1.0, 0.9],
     "facility_coverage": 70,  # % population within 5km of a facility
-    "syndromic_correlations": {
-        "fever": [1.0, 0.8, 0.3],
-        "respiratory": [0.8, 1.0, 0.5],
-        "fatigue": [0.3, 0.5, 1.0]
-    }
+    "syndromic_correlations": [
+        [1.0, 0.8, 0.3],  # Fever
+        [0.8, 1.0, 0.5],  # Respiratory
+        [0.3, 0.5, 1.0]   # Fatigue
+    ]
 }
 
 # Date labels
@@ -66,6 +66,7 @@ if geojson_data:
             st.warning("No zone data available for choropleth map.")
     except Exception as e:
         st.error(f"Error rendering choropleth map: {str(e)}")
+        logger.error(f"Choropleth error: {str(e)}")
 else:
     st.warning("GeoJSON data not available. Check 'data/zones.geojson'.")
 
@@ -75,7 +76,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['disease_trends'],
     "Risk (per 1,000)",
-    "blue",  # Use Plotly-compatible color
+    "blue",  # Plotly-compatible color
     target_line=2.5,
     target_label="High: 2.5"
 ), use_container_width=True)
@@ -88,7 +89,7 @@ st.plotly_chart(plot_annotated_line_chart(
     date_labels,
     mock_data['outbreak_trend'],
     "Outbreak Risk (%)",
-    "red",  # Use Plotly-compatible color
+    "red",  # Plotly-compatible color
     target_line=80,
     target_label="Critical: 80"
 ), use_container_width=True)
@@ -101,14 +102,15 @@ try:
         index=["Fever", "Respiratory", "Fatigue"],
         columns=["Fever", "Respiratory", "Fatigue"]
     ).astype(float)
-    if not corr_matrix.empty:
+    if not corr_matrix.empty and corr_matrix.shape[0] == corr_matrix.shape[1]:
         st.plotly_chart(plot_heatmap(
             corr_matrix,
             "Syndromic Correlations"
         ), use_container_width=True)
+        logger.info("Successfully rendered syndromic correlations heatmap")
     else:
-        st.warning("No correlation data available for heatmap.")
-    logger.info("Successfully rendered syndromic correlations heatmap")
+        st.warning("Invalid correlation matrix: Must be non-empty and square.")
+        logger.warning(f"Invalid corr_matrix shape: {corr_matrix.shape}")
 except Exception as e:
     st.error(f"Error rendering heatmap: {str(e)}")
     logger.error(f"Heatmap error: {str(e)}")
