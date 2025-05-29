@@ -1,5 +1,6 @@
 # config/app_config.py
 import os
+import pandas as pd # <<<<<<<<<<<< ADD THIS IMPORT HERE
 
 # Base directory of the application
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # health_hub_app directory
@@ -18,32 +19,30 @@ APP_LOGO = os.path.join(ASSETS_DIR, "logo.png")
 # App Settings
 APP_TITLE = "Community Health Intelligence Hub"
 APP_VERSION = "1.1.0"
-APP_FOOTER = f"© {pd.Timestamp('now').year} Health Informatics Initiative"
+APP_FOOTER = f"© {pd.Timestamp('now').year} Health Informatics Initiative" # Now 'pd' is defined
 
 
 # Dashboard specific settings
-DEFAULT_DATE_RANGE_DAYS_VIEW = 7 # For point-in-time views like CHW daily tasks
-DEFAULT_DATE_RANGE_DAYS_TREND = 90 # For trend analysis
+DEFAULT_DATE_RANGE_DAYS_VIEW = 7
+DEFAULT_DATE_RANGE_DAYS_TREND = 90
 RISK_THRESHOLDS = {
     "high": 75,
     "moderate": 60,
-    "chw_alert_high": 80, # Specific for CHW alert highlighting
+    "chw_alert_high": 80,
     "chw_alert_moderate": 65,
-    "district_zone_high_risk": 70 # Avg risk score for a zone to be considered high risk
+    "district_zone_high_risk": 70
 }
 CRITICAL_SUPPLY_DAYS = 7
 TARGET_TEST_TURNAROUND_DAYS = 2
-TARGET_PATIENT_RISK_SCORE = 60 # Example overall target for district
+TARGET_PATIENT_RISK_SCORE = 60
 
-# Plotly specific settings (can be expanded)
+# Plotly specific settings
 DEFAULT_PLOT_HEIGHT = 380
 MAP_PLOT_HEIGHT = 550
-MAP_DEFAULT_ZOOM = 7 # Adjust based on your GeoJSON extent
+MAP_DEFAULT_ZOOM = 7
 
 # Logging Configuration
 LOG_LEVEL = "INFO"
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-# Import pandas here if used for APP_FOOTER for cleaner access elsewhere
-import pandas as pd
-APP_FOOTER = f"© {pd.Timestamp('now').year} Health Informatics Initiative"
+# CONTACT_EMAIL = "your_support_email@example.com" # Example for menu_items and sidebar
