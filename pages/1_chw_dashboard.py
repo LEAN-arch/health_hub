@@ -10,12 +10,11 @@ from utils.core_data_processing import (
     get_trend_data
 )
 from utils.ui_visualization_helpers import (
-    get_kpi_card_html, # Changed from render_kpi_card
-    get_traffic_light_html, # Changed from render_traffic_light
-    render_html_row,    # New helper to render a row
+    render_kpi_card, # Reverted to render_...
+    render_traffic_light, # Reverted to render_...
     plot_annotated_line_chart
 )
-import logging # Import logging
+import logging
 
 # --- Page Configuration and Styling ---
 st.set_page_config(page_title="CHW Dashboard - Health Hub", layout="wide", initial_sidebar_state="expanded")
@@ -55,7 +54,7 @@ else:
         max_date, 
         min_value=min_date, 
         max_value=max_date, 
-        key="chw_view_date_filter_v2", # Ensure unique key
+        key="chw_view_date_filter_v2_revert", # Ensure unique key
         help="Select the date for which you want to see daily summaries and tasks."
     )
     
@@ -66,25 +65,19 @@ else:
     
     st.subheader(f"Daily Snapshot: {selected_view_date.strftime('%B %d, %Y')}")
     
-    # Prepare HTML for each KPI card
-    kpi_cards_html_list = []
-    kpi_cards_html_list.append(
-        get_kpi_card_html("Visits Recorded", str(chw_kpis['visits_today']), "🚶‍♂️", 
-                          help_text="Number of patient visits recorded on the selected date.")
-    )
-    status_tasks = "Moderate" if chw_kpis['pending_tasks'] > 5 else "Low" if chw_kpis['pending_tasks'] > 0 else "Low"
-    kpi_cards_html_list.append(
-        get_kpi_card_html("Open Tasks", str(chw_kpis['pending_tasks']), "📝", status=status_tasks,
+    # Using st.columns again, with the .strip() in render_kpi_card
+    kpi_cols = st.columns(3)
+    with kpi_cols[0]:
+        render_kpi_card("Visits Recorded", str(chw_kpis['visits_today']), "🚶‍♂️", 
+                        help_text="Number of patient visits recorded on the selected date.")
+    with kpi_cols[1]:
+        status_tasks = "Moderate" if chw_kpis['pending_tasks'] > 5 else "Low" if chw_kpis['pending_tasks'] > 0 else "Low"
+        render_kpi_card("Open Tasks", str(chw_kpis['pending_tasks']), "📝", status=status_tasks,
                           help_text="Total pending referrals and TB contact traces assigned.")
-    )
-    status_hr = "High" if chw_kpis['high_risk_followups'] > 3 else "Moderate" if chw_kpis['high_risk_followups'] > 0 else "Low"
-    kpi_cards_html_list.append(
-        get_kpi_card_html("High-Risk Follow-ups", str(chw_kpis['high_risk_followups']), "⚠️", status=status_hr,
+    with kpi_cols[2]:
+        status_hr = "High" if chw_kpis['high_risk_followups'] > 3 else "Moderate" if chw_kpis['high_risk_followups'] > 0 else "Low"
+        render_kpi_card("High-Risk Follow-ups", str(chw_kpis['high_risk_followups']), "⚠️", status=status_hr,
                           help_text=f"Patients with risk score >= {app_config.RISK_THRESHOLDS['high']} needing attention.")
-    )
-
-    # Render the row of KPI cards
-    render_html_row(kpi_cards_html_list)
 
     st.markdown("---")
 
@@ -96,26 +89,19 @@ else:
     with tab_alerts:
         st.subheader("Critical Patient Alerts")
         if not patient_alerts_df.empty:
-            alerts_html_list = []
             sorted_alerts = patient_alerts_df.sort_values(by='ai_risk_score', ascending=False)
-            for _, alert in sorted_alerts.head(10).iterrows():
+            for _, alert in sorted_alerts.head(10).iterrows(): # Iterate and call render_traffic_light
                 status = "High" if alert['ai_risk_score'] >= app_config.RISK_THRESHOLDS['chw_alert_high'] else \
                          "Moderate" if alert['ai_risk_score'] >= app_config.RISK_THRESHOLDS['chw_alert_moderate'] else "Low"
-                alerts_html_list.append(
-                    get_traffic_light_html( # Use the HTML generator
-                        f"Patient {alert['patient_id']} ({alert['condition']})", 
-                        status, 
-                        details=f"Risk: {alert['ai_risk_score']:.0f} | Reason: {alert['alert_reason']}"
-                    )
+                render_traffic_light( # Calling the direct render function
+                    f"Patient {alert['patient_id']} ({alert['condition']})", 
+                    status, 
+                    details=f"Risk: {alert['ai_risk_score']:.0f} | Reason: {alert['alert_reason']}"
                 )
-            # Render all traffic lights in one go if you want them stacked without `st.columns` issues
-            # If just stacking them vertically, individual st.markdown calls for each is fine usually.
-            # For this example, let's assume we stack them using individual calls as the issue was primarily with horizontal layouts.
-            for html_item in alerts_html_list:
-                st.markdown(html_item, unsafe_allow_html=True)
         else:
             st.success("✅ No critical patient alerts for the selected date based on current criteria.")
             
+    # ... (Rest of the CHW dashboard as before, using render_... functions directly) ...
     with tab_tasks:
         st.subheader("Prioritized Task List")
         if not patient_alerts_df.empty:
@@ -135,13 +121,12 @@ else:
                 }
             )
             csv_tasks = task_df_display.to_csv(index=False).encode('utf-8')
-            st.download_button("Download Task List (CSV)", csv_tasks, f"chw_tasks_{selected_view_date}.csv", "text/csv", key="chw_tasks_download_v2")
+            st.download_button("Download Task List (CSV)", csv_tasks, f"chw_tasks_{selected_view_date}.csv", "text/csv", key="chw_tasks_download_v3") # Unique key
         else:
             st.info("No specific tasks or follow-ups identified for the selected date.")
             
     st.markdown("---")
 
-    # --- Trends ---
     st.subheader("Performance & Workload Trends (Overall)")
     trend_cols = st.columns(2)
     
@@ -158,8 +143,7 @@ else:
             st.caption("Not enough data for risk score trend.")
 
     with trend_cols[1]:
-        chw_visits_df = health_df[health_df['chw_visit'] == 1].copy() # Use a copy for modifications
-        # Ensure 'date' is datetime before grouping for trend
+        chw_visits_df = health_df[health_df['chw_visit'] == 1].copy()
         if not chw_visits_df.empty and 'date' in chw_visits_df.columns:
             chw_visits_df['date'] = pd.to_datetime(chw_visits_df['date'], errors='coerce')
             chw_visits_df.dropna(subset=['date'], inplace=True)
