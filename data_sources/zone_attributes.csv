@@ -1,6 +1,7 @@
 zone_id,name,population,socio_economic_index,num_clinics,avg_travel_time_clinic_min
-TJ-ZONA-RIO,Zona Río,45000,0.75,5,10
-TJ-CENTRO,Centro,60000,0.60,4,12
-TJ-OTAY,Otay Centenario,120000,0.50,3,20
-TJ-PLAYAS,Playas de Tijuana,75000,0.68,2,18
-TJ-LA-MESA,La Mesa,150000,0.45,3,25
+ZoneA,Northwood District,12500,0.65,2,15
+ZoneB,Southville Area,21000,0.42,1,28
+ZoneC,Eastgate Community,17500,0.78,3,12
+ZoneD,Westend Borough,8500,0.55,1,22
+ZoneE,Central City Sector,35000,0.85,4,8
+ZoneF,Riverdale Precinct,15000,0.30,1,35
