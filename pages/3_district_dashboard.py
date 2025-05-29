@@ -1,23 +1,25 @@
 # pages/3_district_dashboard.py
 import streamlit as st
 import pandas as pd
+import geopandas as gpd # Import geopandas earlier
 import os
+import logging
 from config import app_config
 from utils.core_data_processing import (
-    load_health_records, # Still needed for overall min/max dates
+    load_health_records,
     load_zone_data,
     enrich_zone_geodata_with_health_aggregates,
     get_district_summary_kpis,
-    get_trend_data
+    get_trend_data,
+    hash_geodataframe # Import the custom hash function for GDF
 )
 from utils.ui_visualization_helpers import (
     render_kpi_card,
     plot_layered_choropleth_map,
     plot_annotated_line_chart,
     plot_bar_chart,
-    plot_heatmap
+    plot_heatmap # Keep if syndromic surveillance is implemented
 )
-import logging # Import logging
 
 # --- Page Configuration and Styling ---
 st.set_page_config(page_title="District Dashboard - Health Hub", layout="wide", initial_sidebar_state="expanded")
@@ -27,53 +29,55 @@ def load_css():
     if os.path.exists(app_config.STYLE_CSS):
         with open(app_config.STYLE_CSS) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    else: # pragma: no cover
+        logger.warning(f"CSS file not found at {app_config.STYLE_CSS}. Default styles will be used.")
 load_css()
 
 # --- Data Loading ---
 @st.cache_data(ttl=3600, hash_funcs={
-    pd.DataFrame: lambda df: df.to_parquet() if not df.empty else None, # Handle empty df for hashing
-    gpd.GeoDataFrame: "hash_geodataframe" # Assuming hash_geodataframe is globally accessible or defined here
+    pd.DataFrame: lambda df: df.to_parquet() if not df.empty and isinstance(df, pd.DataFrame) else None,
+    gpd.GeoDataFrame: hash_geodataframe # Use the imported function object
 })
 def get_district_page_data():
-    # Define hash_geodataframe here if not imported or globally available from core_data_processing
-    # For simplicity, I'll assume it's accessible or you'd import it if it was in a shared utils
-    # from utils.core_data_processing import hash_geodataframe # If it's there
-
+    logger.info("Getting district page data...")
     health_df = load_health_records()
-    zone_base_gdf = load_zone_data()
-    
+    zone_base_gdf = load_zone_data() # This is the GDF with attributes and geometry
+
     if health_df.empty:
-        logger.error("Health records are empty. District dashboard might be incomplete.")
-        # Return empty GDF if base GDF is also problematic or proceed with what we have
+        logger.error("Health records are empty. District dashboard might be incomplete or show no data.")
+        # If zone_base_gdf is also problematic, return Nones
         if zone_base_gdf is None or zone_base_gdf.empty:
             st.error("🚨 Critical Error: Could not load base health records or zone geographic data.")
-            return pd.DataFrame(), None # Return empty DF and None
+            logger.error("Both health records and zone geographic data are empty/None.")
+            return pd.DataFrame(), None # Return empty DF for health_df, None for GDF
         # If zone_base_gdf is fine, enrich it with an empty health_df (will add 0-value columns)
+        logger.warning("Enriching zone GDF with empty health records.")
         enriched_gdf = enrich_zone_geodata_with_health_aggregates(zone_base_gdf, health_df)
         return health_df, enriched_gdf
 
     if zone_base_gdf is None or zone_base_gdf.empty:
-        st.error("🚨 Critical Error: Could not load zone geographic data.")
+        st.error("🚨 Critical Error: Could not load zone geographic data. Map and zonal analysis will be unavailable.")
+        logger.error("Zone geographic data is empty/None.")
         return health_df, None # Return health_df and None for GDF
 
+    # Enrich the zone_base_gdf with aggregated health data
     enriched_zone_gdf = enrich_zone_geodata_with_health_aggregates(zone_base_gdf, health_df)
-    
-    if enriched_zone_gdf is None or enriched_zone_gdf.empty:
-         st.error("🚨 Critical Error: Failed to merge health aggregates with zone geographic data.")
-         return health_df, zone_base_gdf # Fallback to base GDF
 
+    if enriched_zone_gdf is None or enriched_zone_gdf.empty:
+         st.error("🚨 Critical Error: Failed to merge health aggregates with zone geographic data. Map and zonal stats may be incorrect.")
+         logger.error("Enrichment of zone GDF resulted in empty or None GDF.")
+         return health_df, zone_base_gdf # Fallback to base GDF to at least show geometries if possible
+
+    logger.info("Successfully retrieved district page data.")
     return health_df, enriched_zone_gdf
 
 health_records_for_trends, district_map_and_zonal_stats_gdf = get_district_page_data()
 
 # --- Main Page ---
-if health_records_for_trends is None or district_map_and_zonal_stats_gdf is None :
-    st.error("Essential data could not be loaded. District Dashboard cannot be fully displayed.")
-    if health_records_for_trends is None: health_records_for_trends = pd.DataFrame() # Ensure it's a DF for safety
-    if district_map_and_zonal_stats_gdf is None: district_map_and_zonal_stats_gdf = gpd.GeoDataFrame() # Ensure it's a GDF
-    # Allow app to proceed with partial data if possible, or st.stop()
-    if health_records_for_trends.empty and district_map_and_zonal_stats_gdf.empty:
-        st.stop()
+# Ensure dataframes are not None before proceeding
+if health_records_for_trends is None: health_records_for_trends = pd.DataFrame()
+if district_map_and_zonal_stats_gdf is None: district_map_and_zonal_stats_gdf = gpd.GeoDataFrame()
+
 
 st.title("🗺️ District Health Officer Dashboard")
 st.markdown("**Strategic Overview for Population Health Management & Resource Allocation**")
@@ -81,148 +85,132 @@ st.markdown("---")
 
 # --- Sidebar Filters ---
 st.sidebar.header("District Filters")
+start_date_filter, end_date_filter = None, None # Initialize
 
-# Handle case where health_records_for_trends might be empty after loading attempts
 if not health_records_for_trends.empty and 'date' in health_records_for_trends.columns:
     # Ensure date column is datetime
-    if not pd.api.types.is_datetime64_any_dtype(health_records_for_trends['date']):
-        health_records_for_trends['date'] = pd.to_datetime(health_records_for_trends['date'], errors='coerce')
-        health_records_for_trends.dropna(subset=['date'], inplace=True)
+    if not pd.api.types.is_datetime64_any_dtype(health_records_for_trends['date']): # pragma: no cover
+        try:
+            health_records_for_trends['date'] = pd.to_datetime(health_records_for_trends['date'], errors='coerce')
+            health_records_for_trends.dropna(subset=['date'], inplace=True)
+        except Exception as e_dt_conv: # pragma: no cover
+            logger.error(f"Error converting 'date' column to datetime in health_records_for_trends: {e_dt_conv}")
+            # If conversion fails, we might not be able to set date filters
+            health_records_for_trends = pd.DataFrame() # Invalidate for date operations
 
-    if not health_records_for_trends.empty:
+    if not health_records_for_trends.empty: # Check again after potential dropna
         min_date = health_records_for_trends['date'].min().date()
         max_date = health_records_for_trends['date'].max().date()
 
         default_start_dt = pd.to_datetime(max_date) - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND - 1)
         default_start_date = default_start_dt.date()
 
-        # Ensure default_start_date is not before min_date
-        if default_start_date < min_date:
-            default_start_date = min_date
-        
-        # Ensure default_start_date is not after max_date (can happen if date range in data is small)
-        if default_start_date > max_date:
-            default_start_date = max_date # Or min_date, depending on desired behavior
+        if default_start_date < min_date: default_start_date = min_date
+        if default_start_date > max_date: default_start_date = max_date if max_date >=min_date else min_date
+
 
         start_date_filter, end_date_filter = st.sidebar.date_input(
             "Select Date Range for Trends:",
-            value=[default_start_date, max_date], # Both are datetime.date objects
+            value=[default_start_date, max_date],
             min_value=min_date,
             max_value=max_date,
-            key="district_date_range_filter",
+            key="district_date_range_filter_v2", # Ensure unique key
             help="This date range applies to time-series trend charts."
         )
-    else:
+    else: # pragma: no cover
         st.sidebar.warning("No valid date data in health records for date filter.")
-        start_date_filter, end_date_filter = None, None # Fallback
-else:
-    st.sidebar.warning("Health records are empty or 'date' column is missing. Cannot set date filter.")
-    start_date_filter, end_date_filter = None, None # Fallback
+else: # pragma: no cover
+    st.sidebar.warning("Health records are empty or 'date' column is missing. Cannot set date filter for trends.")
 
 # Filter health_records_for_trends for time-series charts
-if start_date_filter and end_date_filter and start_date_filter <= end_date_filter:
+if start_date_filter and end_date_filter and start_date_filter <= end_date_filter and not health_records_for_trends.empty:
     filtered_health_records_for_trends = health_records_for_trends[
         (health_records_for_trends['date'].dt.date >= start_date_filter) &
         (health_records_for_trends['date'].dt.date <= end_date_filter)
     ].copy()
-elif not health_records_for_trends.empty: # If filters are invalid/None but data exists
-    logger.warning("Date filter for trends is invalid or not set, using all available trend data.")
+elif not health_records_for_trends.empty:
+    logger.info("Date filter for trends is invalid or not set, using all available trend data.")
     filtered_health_records_for_trends = health_records_for_trends.copy()
-else: # No data to filter
+else:
     filtered_health_records_for_trends = pd.DataFrame()
 
 
-# --- KPIs (from district_map_and_zonal_stats_gdf which has all-time aggregates) ---
+# --- KPIs ---
 if not district_map_and_zonal_stats_gdf.empty:
     district_kpis = get_district_summary_kpis(district_map_and_zonal_stats_gdf)
     st.subheader("District-Wide Key Performance Indicators (Overall)")
     kpi_cols = st.columns(3)
     with kpi_cols[0]:
-        pop_risk_status = "High" if district_kpis.get('avg_population_risk', 0) > app_config.RISK_THRESHOLDS['district_zone_high_risk'] -5 else \
-                          "Moderate" if district_kpis.get('avg_population_risk', 0) > app_config.RISK_THRESHOLDS['moderate'] else "Low"
-        render_kpi_card("Avg. Population Risk", f"{district_kpis.get('avg_population_risk', 0):.1f}", "🎯", status=pop_risk_status,
+        pop_risk_val = district_kpis.get('avg_population_risk', 0)
+        pop_risk_status = "High" if pop_risk_val > app_config.RISK_THRESHOLDS['district_zone_high_risk'] -5 else \
+                          "Moderate" if pop_risk_val > app_config.RISK_THRESHOLDS['moderate'] else "Low"
+        render_kpi_card("Avg. Population Risk", f"{pop_risk_val:.1f}", "🎯", status=pop_risk_status,
                         help_text="Population-weighted average AI risk score across all zones.")
     with kpi_cols[1]:
-        fac_cov_status = "Low" if district_kpis.get('overall_facility_coverage', 0) < 60 else \
-                         "Moderate" if district_kpis.get('overall_facility_coverage', 0) < 80 else "High"
-        render_kpi_card("Facility Coverage Score", f"{district_kpis.get('overall_facility_coverage', 0):.1f}%", "🏥", status=fac_cov_status,
+        fac_cov_val = district_kpis.get('overall_facility_coverage', 0)
+        fac_cov_status = "Low" if fac_cov_val < 60 else "Moderate" if fac_cov_val < 80 else "High"
+        render_kpi_card("Facility Coverage Score", f"{fac_cov_val:.1f}%", "🏥", status=fac_cov_status,
                         help_text="Population-weighted average facility coverage score (considers access & capacity).")
     with kpi_cols[2]:
-        hz_status = "High" if district_kpis.get('zones_high_risk', 0) > (len(district_map_and_zonal_stats_gdf) * 0.25) else \
-                    "Moderate" if district_kpis.get('zones_high_risk', 0) > 0 else "Low"
-        render_kpi_card("High-Risk Zones", str(district_kpis.get('zones_high_risk', 0)), "⚠️", status=hz_status,
+        hz_val = district_kpis.get('zones_high_risk', 0)
+        hz_status = "High" if hz_val > (len(district_map_and_zonal_stats_gdf) * 0.25) else \
+                    "Moderate" if hz_val > 0 else "Low"
+        render_kpi_card("High-Risk Zones", str(hz_val), "⚠️", status=hz_status,
                         help_text=f"Number of zones with average risk score >= {app_config.RISK_THRESHOLDS['district_zone_high_risk']}.")
-else:
-    st.warning("Zone map data not available for KPIs.")
+else: # pragma: no cover
+    st.warning("Zone map data not available for KPIs. Ensure zone data is loaded correctly.")
 st.markdown("---")
 
 # --- Choropleth Map ---
-# (Rest of the District Dashboard code remains the same as the "complete corrected file" version)
-# ... ensure that district_map_and_zonal_stats_gdf and filtered_health_records_for_trends
-# are checked for emptiness before being used by plotting functions ...
-# Example:
 if not district_map_and_zonal_stats_gdf.empty:
     st.subheader("Interactive Health Map: Risk & Resources by Zone")
     map_metric_options = {
-        "Average AI Risk Score": "avg_risk_score",
-        "Active Cases (Count)": "active_cases",
-        "Prevalence per 1,000": "prevalence_per_1000",
-        "Facility Coverage Score": "facility_coverage_score",
-        "Population": "population",
-        "Socio-Economic Index": "socio_economic_index",
-        "Number of Clinics": "num_clinics",
-        "Avg. Travel Time to Clinic (min)": "avg_travel_time_clinic_min"
+        "Average AI Risk Score": "avg_risk_score", "Active Cases (Count)": "active_cases",
+        "Prevalence per 1,000": "prevalence_per_1000", "Facility Coverage Score": "facility_coverage_score",
+        "Population": "population", "Socio-Economic Index": "socio_economic_index",
+        "Number of Clinics": "num_clinics", "Avg. Travel Time to Clinic (min)": "avg_travel_time_clinic_min"
     }
-    available_map_metrics = {k: v for k, v in map_metric_options.items() if v in district_map_and_zonal_stats_gdf.columns}
+    available_map_metrics = {k: v for k, v in map_metric_options.items() if v in district_map_and_zonal_stats_gdf.columns and district_map_and_zonal_stats_gdf[v].notna().any()}
     
     if available_map_metrics:
         selected_map_metric_display = st.selectbox(
-            "Select Metric to Display on Map:", 
-            list(available_map_metrics.keys()), 
-            key="district_map_metric_select",
+            "Select Metric to Display on Map:", list(available_map_metrics.keys()), 
+            key="district_map_metric_select_v2",
             help="Choose a metric to visualize spatially across the district zones."
         )
         selected_map_metric_col = available_map_metrics.get(selected_map_metric_display)
 
         if selected_map_metric_col:
-            # ... (map plotting logic as before) ...
             color_scale = "OrRd" 
             if any(keyword in selected_map_metric_col.lower() for keyword in ["coverage", "socio_economic", "clinics"]):
                 color_scale = "Mint" 
-            elif "travel_time" in selected_map_metric_col.lower():
-                color_scale = "OrRd" 
+            elif "travel_time" in selected_map_metric_col.lower(): color_scale = "OrRd" 
 
             map_figure = plot_layered_choropleth_map(
-                district_map_and_zonal_stats_gdf,
-                value_col=selected_map_metric_col,
-                title=f"{selected_map_metric_display} by Zone",
-                id_col='zone_id', 
-                featureidkey_prop='zone_id',
-                color_continuous_scale=color_scale,
+                district_map_and_zonal_stats_gdf, value_col=selected_map_metric_col,
+                title=f"{selected_map_metric_display} by Zone", id_col='zone_id', 
+                featureidkey_prop='zone_id', color_continuous_scale=color_scale,
                 hover_cols=['name', 'population', selected_map_metric_col, 'num_clinics', 'avg_travel_time_clinic_min'],
-                height=app_config.MAP_PLOT_HEIGHT,
-                zoom_level=app_config.MAP_DEFAULT_ZOOM
+                height=app_config.MAP_PLOT_HEIGHT, zoom_level=app_config.MAP_DEFAULT_ZOOM
             )
             st.plotly_chart(map_figure, use_container_width=True)
-        else:
-            st.warning("No metric selected for the map or selected metric column is missing.")
+        else: # pragma: no cover
+            st.warning("No metric selected for the map or selected metric column data is all NaNs.")
     else:
-        st.warning("No metrics available for mapping in the current zone data.")
-else:
+        st.warning("No metrics with valid data available for mapping in the current zone data.")
+else: # pragma: no cover
     st.warning("Zone map data is empty. Cannot display map.")
-
 st.markdown("---")
 
 # --- Tabs for Trends and Comparative Analysis ---
 tab_trends, tab_comparison, tab_interventions = st.tabs(["📈 District Trends", "📊 Zonal Comparison", "🛠️ Intervention Insights"])
 
 with tab_trends:
-    if not filtered_health_records_for_trends.empty:
-        st.subheader(f"Key Health Trends ({start_date_filter.strftime('%d %b %Y') if start_date_filter else 'All time'} - {end_date_filter.strftime('%d %b %Y') if end_date_filter else ''})")
-        # ... (trend plotting logic as before, using filtered_health_records_for_trends) ...
+    if not filtered_health_records_for_trends.empty and start_date_filter and end_date_filter:
+        st.subheader(f"Key Health Trends ({start_date_filter.strftime('%d %b %Y')} - {end_date_filter.strftime('%d %b %Y')})")
         trend_cols = st.columns(2)
         with trend_cols[0]:
-            overall_risk_trend = get_trend_data(filtered_health_records_for_trends, 'ai_risk_score', period='W')
+            overall_risk_trend = get_trend_data(filtered_health_records_for_trends, 'ai_risk_score', period='W', agg_func='mean')
             if not overall_risk_trend.empty:
                 st.plotly_chart(plot_annotated_line_chart(
                     overall_risk_trend, "Weekly Avg. AI Risk Score (District)", y_axis_title="Avg. Risk Score",
@@ -232,93 +220,102 @@ with tab_trends:
             else: st.caption("No data for risk score trend in selected period.")
         
         with trend_cols[1]:
-            filtered_health_records_for_trends['new_case_flag'] = filtered_health_records_for_trends['condition'].astype(str).isin(['TB', 'Malaria', 'ARI']).astype(int)
-            new_cases_trend = filtered_health_records_for_trends.groupby(pd.Grouper(key='date', freq='W'))['new_case_flag'].sum()
-            new_cases_trend_series = pd.Series(new_cases_trend.values, index=new_cases_trend.index, name="New Cases")
+            # Use a copy for adding flags to avoid modifying cached df
+            trend_df_copy = filtered_health_records_for_trends.copy()
+            trend_df_copy['new_case_flag'] = trend_df_copy['condition'].astype(str).isin(['TB', 'Malaria', 'ARI']).astype(int)
+            new_cases_trend = get_trend_data(trend_df_copy, 'new_case_flag', period='W', agg_func='sum')
 
-            if not new_cases_trend_series.empty:
+            if not new_cases_trend.empty:
                 st.plotly_chart(plot_annotated_line_chart(
-                    new_cases_trend_series, "Weekly New Cases (Key Conditions)", y_axis_title="Number of New Cases",
+                    new_cases_trend, "Weekly New Cases (Key Conditions)", y_axis_title="Number of New Cases",
                     height=app_config.DEFAULT_PLOT_HEIGHT
                 ), use_container_width=True)
             else: st.caption("No data for new cases trend in selected period.")
     else:
-        st.info("No data available for trend analysis based on current filters or data load.")
+        st.info("No data available for trend analysis based on current filters or data load for selected period.")
 
-# ... (Rest of the tabs, ensuring checks for district_map_and_zonal_stats_gdf.empty before use)
 with tab_comparison:
     if not district_map_and_zonal_stats_gdf.empty:
         st.subheader("Comparative Analysis Across Zones (Overall Aggregates)")
-        # ... (comparison logic as before) ...
         comparison_metrics_options = {
             "Avg. AI Risk Score": "avg_risk_score", "Prevalence per 1,000": "prevalence_per_1000",
             "Facility Coverage Score": "facility_coverage_score", "Population": "population",
-            "Number of Clinics": "num_clinics", "Socio-Economic Index": "socio_economic_index"
+            "Number of Clinics": "num_clinics", "Socio-Economic Index": "socio_economic_index",
+            "CHW Visits in Zone": "chw_visits_in_zone", "Total Tests Conducted": "total_tests_conducted"
         }
-        available_comp_metrics = {k: v for k,v in comparison_metrics_options.items() if v in district_map_and_zonal_stats_gdf.columns}
+        available_comp_metrics = {k: v for k,v in comparison_metrics_options.items() if v in district_map_and_zonal_stats_gdf.columns and district_map_and_zonal_stats_gdf[v].notna().any()}
 
         if available_comp_metrics:
-            display_comp_cols = ['name'] + list(available_comp_metrics.values())
+            display_comp_cols = ['name'] + [col for col in available_comp_metrics.values() if col != 'name'] # Ensure 'name' is first and unique
+            display_comp_cols = list(dict.fromkeys(display_comp_cols)) # Keep order, remove duplicates
+
             comparison_df_display = district_map_and_zonal_stats_gdf[display_comp_cols].copy()
             comparison_df_display.set_index('name', inplace=True)
             
             format_dict = {col: "{:.2f}" for col in available_comp_metrics.values() if district_map_and_zonal_stats_gdf[col].dtype == 'float64'}
-            format_dict['population'] = "{:,}"
-            format_dict['num_clinics'] = "{:.0f}"
+            format_dict.update({
+                'population': "{:,.0f}", 'num_clinics': "{:.0f}", 
+                'chw_visits_in_zone': "{:,.0f}", 'total_tests_conducted': "{:,.0f}"
+            })
+            # Filter format_dict for existing columns in comparison_df_display
+            valid_format_dict = {k:v for k,v in format_dict.items() if k in comparison_df_display.columns}
+
 
             st.dataframe(
-                comparison_df_display.style.format(format_dict).background_gradient(
-                    cmap='RdYlGn_r', subset=[m for m in available_comp_metrics.values() if m not in ['population', 'name', 'num_clinics']]
+                comparison_df_display.style.format(valid_format_dict).background_gradient(
+                    cmap='RdYlGn_r', subset=[m for m in available_comp_metrics.values() if m not in ['population', 'name', 'num_clinics', 'chw_visits_in_zone', 'total_tests_conducted', 'socio_economic_index']]
                 ).highlight_max(subset=['facility_coverage_score', 'socio_economic_index', 'num_clinics'], color='lightgreen'
                 ).highlight_min(subset=['avg_risk_score', 'prevalence_per_1000'], color='#FFCCCB'),
-                use_container_width=True
+                use_container_width=True, height=300 
             )
             
-            selected_comp_metric_display = st.selectbox("Select metric for bar chart comparison:", list(available_comp_metrics.keys()), key="district_comp_metric_bar_2") # Changed key
+            selected_comp_metric_display = st.selectbox("Select metric for bar chart comparison:", list(available_comp_metrics.keys()), key="district_comp_metric_bar_v3")
             selected_comp_metric_col = available_comp_metrics.get(selected_comp_metric_display)
 
             if selected_comp_metric_col:
-                # Determine sort order: higher is better for coverage/socio-economic, lower is better for risk/prevalence
                 sort_ascending_bar = any(keyword in selected_comp_metric_col.lower() for keyword in ["coverage", "socio_economic", "clinics"])
                 
-                bar_df = district_map_and_zonal_stats_gdf[['name', selected_comp_metric_col]].sort_values(
-                    by=selected_comp_metric_col, ascending=sort_ascending_bar
-                )
+                bar_df_comp = district_map_and_zonal_stats_gdf[['name', selected_comp_metric_col]].copy()
+                # Sorting is now handled by plot_bar_chart's sort_values_by parameter
                 st.plotly_chart(plot_bar_chart(
-                    bar_df, x_col='name', y_col=selected_comp_metric_col, 
-                    title=f"{selected_comp_metric_display} by Zone",
-                    x_axis_title="Zone Name",
-                    height=app_config.DEFAULT_PLOT_HEIGHT + 50,
-                    sort_values_by=selected_comp_metric_col, # Let bar chart handle sorting based on its parameter
-                    ascending=sort_ascending_bar
+                    bar_df_comp, x_col='name', y_col=selected_comp_metric_col, 
+                    title=f"{selected_comp_metric_display} by Zone", x_axis_title="Zone Name",
+                    height=app_config.DEFAULT_PLOT_HEIGHT + 70, # Taller for potentially many zones
+                    sort_values_by=selected_comp_metric_col, ascending=sort_ascending_bar,
+                    text_auto = '.2s' if 'population' in selected_comp_metric_col else True # Abbreviate large numbers
                 ), use_container_width=True)
-        else:
-            st.info("No metrics available for Zonal Comparison.")
-    else:
+        else: # pragma: no cover
+            st.info("No metrics with valid data available for Zonal Comparison.")
+    else: # pragma: no cover
         st.info("No zonal data available for comparison.")
 
 
 with tab_interventions:
     if not district_map_and_zonal_stats_gdf.empty:
         st.subheader("Intervention Planning Insights")
-        # ... (intervention logic as before) ...
-        priority_criteria_list = [] # Renamed to avoid conflict
+        st.markdown("Identify zones based on combined risk factors. Data shown aggregates all available historical records.")
+        
+        priority_criteria_list = []
         if 'avg_risk_score' in district_map_and_zonal_stats_gdf.columns:
             priority_criteria_list.append(district_map_and_zonal_stats_gdf['avg_risk_score'] >= app_config.RISK_THRESHOLDS['district_zone_high_risk'])
         if 'facility_coverage_score' in district_map_and_zonal_stats_gdf.columns:
             priority_criteria_list.append(district_map_and_zonal_stats_gdf['facility_coverage_score'] < 50) 
         if 'prevalence_per_1000' in district_map_and_zonal_stats_gdf.columns and not district_map_and_zonal_stats_gdf['prevalence_per_1000'].empty:
             prevalence_q75 = district_map_and_zonal_stats_gdf['prevalence_per_1000'].quantile(0.75)
-            if pd.notna(prevalence_q75): # Ensure quantile is valid
+            if pd.notna(prevalence_q75) and prevalence_q75 > 0: # Ensure q75 is valid and not zero
                  priority_criteria_list.append(district_map_and_zonal_stats_gdf['prevalence_per_1000'] >= prevalence_q75)
 
         if priority_criteria_list:
-            final_priority_mask = pd.concat(priority_criteria_list, axis=1).any(axis=1)
-            priority_zones_df = district_map_and_zonal_stats_gdf[final_priority_mask]
+            # Combine criteria: a zone is priority if it meets ANY of the criteria
+            try:
+                final_priority_mask = pd.concat(priority_criteria_list, axis=1).any(axis=1)
+                priority_zones_df = district_map_and_zonal_stats_gdf[final_priority_mask]
+            except Exception as e_concat: # pragma: no cover
+                logger.error(f"Error during priority criteria concatenation: {e_concat}")
+                priority_zones_df = pd.DataFrame() # Fallback to empty
             
             if not priority_zones_df.empty:
-                st.markdown("###### Zones Identified for Potential Intervention:")
-                # ... (dataframe display logic as before) ...
+                st.markdown("###### Zones Identified for Potential Intervention (All-Time Aggregates):")
                 intervention_cols = ['name', 'population', 'avg_risk_score', 'prevalence_per_1000', 'facility_coverage_score', 'num_clinics']
                 actual_intervention_cols = [col for col in intervention_cols if col in priority_zones_df.columns]
                 st.dataframe(
@@ -329,11 +326,12 @@ with tab_interventions:
                         "avg_risk_score": st.column_config.NumberColumn(format="%.1f"),
                         "prevalence_per_1000": st.column_config.NumberColumn(format="%.1f"),
                         "facility_coverage_score": st.column_config.NumberColumn(format="%.1f%%"),
+                        "num_clinics": st.column_config.NumberColumn(format="%d"),
                     }
                 )
             else:
-                st.success("✅ No zones currently meet the defined high-priority criteria for intervention.")
-        else:
-            st.info("No criteria defined or data available for intervention planning.")
-    else:
+                st.success("✅ No zones currently meet the defined high-priority criteria for intervention based on overall data.")
+        else: # pragma: no cover
+            st.info("No priority criteria applicable or data available for intervention planning suggestions.")
+    else: # pragma: no cover
         st.info("No zonal data available for intervention insights.")
