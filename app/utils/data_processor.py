@@ -2,6 +2,11 @@ import pandas as pd
 import json
 import os
 import geopandas as gpd
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def load_data(file_path):
     """
@@ -15,9 +20,10 @@ def load_data(file_path):
         required = ["id", "zone", "condition", "risk", "population"]
         if not all(col in df.columns for col in required):
             raise ValueError(f"Missing required columns: {required}")
+        logger.info(f"Loaded CSV data from {file_path}")
         return df
     except Exception as e:
-        print(f"Error loading data: {str(e)}")
+        logger.error(f"Error loading data: {str(e)}")
         return pd.DataFrame()
 
 def load_geojson(file_path):
@@ -32,9 +38,10 @@ def load_geojson(file_path):
         required = ["zone", "risk", "facilities", "population"]
         if not all(prop in gdf.columns for prop in required):
             raise ValueError(f"Missing required GeoJSON properties: {required}")
+        logger.info(f"Loaded GeoJSON data from {file_path}")
         return gdf.__geo_interface__
     except Exception as e:
-        print(f"Error loading GeoJSON: {str(e)}")
+        logger.error(f"Error loading GeoJSON: {str(e)}")
         return None
 
 def calculate_incidence_rate(df, population_col="population", case_col="risk"):
@@ -44,7 +51,9 @@ def calculate_incidence_rate(df, population_col="population", case_col="risk"):
     try:
         total_cases = df[case_col].sum()
         total_population = df[population_col].sum()
-        return (total_cases / total_population) * 1000 if total_population > 0 else 0
+        rate = (total_cases / total_population) * 1000 if total_population > 0 else 0
+        logger.info(f"Calculated incidence rate: {rate:.2f}")
+        return rate
     except Exception as e:
-        print(f"Error calculating incidence rate: {str(e)}")
-        return 0
+        logger.error(f"Error calculating incidence rate: {str(e)}")
+        return 0.0
