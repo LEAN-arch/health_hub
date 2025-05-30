@@ -213,23 +213,76 @@ def plot_bar_chart(df_input, x_col: str, y_col: str, title: str, color_col: str 
     if orientation == 'h' and not sort_values_by: fig.update_layout(yaxis={'categoryorder':'total ascending' if ascending else 'total descending'})
     return fig
 
-def plot_donut_chart(data_df_input, labels_col: str, values_col: str, title: str, height: int = None, color_discrete_map: dict = None, pull_segments: float = 0.03, center_text: str = None):
+
+def plot_donut_chart(
+    data_df_input, labels_col: str, values_col: str, title: str, height: int = None,
+    color_discrete_map: dict = None, pull_segments: float = 0.03, center_text: str = None
+):
     final_height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 40
-    if data_df_input is None or data_df_input.empty or labels_col not in data_df_input.columns or values_col not in data_df_input.columns: return _create_empty_figure(title, final_height)
-    df = data_df_input.copy(); df[values_col] = pd.to_numeric(df[values_col], errors='coerce').fillna(0); df = df[df[values_col] > 0]
-    if df.empty: return _create_empty_figure(title, final_height, "No positive data to display.")
+    if data_df_input is None or data_df_input.empty or labels_col not in data_df_input.columns or values_col not in data_df_input.columns:
+        logger.warning(f"Donut Chart '{title}': Empty or invalid input DataFrame, or missing columns '{labels_col}'/'{values_col}'.")
+        return _create_empty_figure(title, final_height)
+
+    df = data_df_input.copy()
+    df[values_col] = pd.to_numeric(df[values_col], errors='coerce').fillna(0)
+    df = df[df[values_col] > 0] 
+    if df.empty:
+        logger.warning(f"Donut Chart '{title}': No positive values to plot after filtering.")
+        return _create_empty_figure(title, final_height, "No positive data to display.")
+    
+    # Sort DataFrame by values_col descending so that legend and pulls are consistent.
+    # go.Pie trace itself has a 'sort' attribute which defaults to True and sorts by values.
+    # We pre-sort here for consistent color mapping if needed.
     df.sort_values(by=values_col, ascending=False, inplace=True)
+
     plot_colors_donut_list = []
+    # Try to get colors from color_discrete_map first
     if color_discrete_map: 
-        plot_colors_donut_list = [color_discrete_map.get(lbl, _get_theme_color(i)) for i, lbl in enumerate(df[labels_col])]
+        plot_colors_donut_list = [color_discrete_map.get(lbl, _get_theme_color(i, color_type='disease')) for i, lbl in enumerate(df[labels_col])]
+    # Then try app_config.DISEASE_COLORS if available
     elif hasattr(app_config,"DISEASE_COLORS") and app_config.DISEASE_COLORS:
          plot_colors_donut_list = [app_config.DISEASE_COLORS.get(lbl, _get_theme_color(i)) for i,lbl in enumerate(df[labels_col])]
-    else: # Fallback if no color map or app_config.DISEASE_COLORS
+    # Fallback to general theme colors
+    else: 
         plot_colors_donut_list = [_get_theme_color(i) for i in range(len(df[labels_col]))]
-    fig = go.Figure(data=[go.Pie(labels=df[labels_col], values=df[values_col], hole=0.52, pull=[pull_segments if i < 3 else 0 for i in range(len(df))], textinfo='label+percent', hoverinfo='label+value+percent', insidetextorientation='radial', marker=dict(colors=plot_colors_donut_list, line=dict(color='#ffffff', width=2.2)), sort=False)])
-    annotations_list_donut = [dict(text=center_text, x=0.5, y=0.5, font_size=18, showarrow=False, font_color=_get_theme_color(0,"#343a40"))] if center_text else None
-    fig.update_layout(title_text=title, height=final_height, showlegend=True, legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="right", x=1.18, traceorder="sorted"), annotations=annotations_list_donut)
+    
+    fig = go.Figure(data=[go.Pie(
+        labels=df[labels_col], 
+        values=df[values_col], 
+        hole=0.52, 
+        pull=[pull_segments if i < 3 else 0 for i in range(len(df))], # Pull top 3 segments
+        textinfo='label+percent', 
+        hoverinfo='label+value+percent', 
+        insidetextorientation='radial', 
+        marker=dict(colors=plot_colors_donut_list, line=dict(color='#ffffff', width=2.2)),
+        sort=True # Default is True, explicitly stating it for clarity. Sorts slices by values.
+    )])
+    
+    annotations_list_donut = []
+    if center_text:
+        annotations_list_donut.append(
+            dict(text=center_text, x=0.5, y=0.5, font_size=18, showarrow=False, 
+                 font_color=_get_theme_color(0, fallback_color="#343a40") # Get a default dark text color
+            )
+        )
+
+    # --- CORRECTED LEGEND ---
+    fig.update_layout(
+        title_text=title, 
+        height=final_height, 
+        showlegend=True, 
+        legend=dict(
+            orientation="v", 
+            yanchor="middle", y=0.5, 
+            xanchor="right", x=1.18, 
+            traceorder="normal" # Changed from "sorted". 'normal' or 'reversed' are common for legend item order.
+                                # The pie slices themselves are sorted by the `sort=True` in `go.Pie`.
+        ), 
+        annotations=annotations_list_donut if annotations_list_donut else None
+    )
     return fig
+
+# ... (plot_heatmap and other functions remain the same) ...
 
 def plot_heatmap(matrix_df_input, title: str, height: int = None, colorscale: str = "RdBu_r", zmid: float = 0, text_auto: bool = True, text_format: str = ".2f", show_colorbar: bool = True):
     final_height = height if height is not None else app_config.DEFAULT_PLOT_HEIGHT + 100
