@@ -50,11 +50,7 @@ load_css(app_config.STYLE_CSS_PATH) # <--- CORRECTED HERE
 
 # --- App Header ---
 header_cols = st.columns([0.08, 0.92]) 
-with header_cols[0]:
-    if os.path.exists(app_config.APP_LOGO):
-        st.image(app_config.APP_LOGO, width=70) 
-    else:
-        st.markdown("❤️", unsafe_allow_html=True) 
+
        
 
 with header_cols[1]:
