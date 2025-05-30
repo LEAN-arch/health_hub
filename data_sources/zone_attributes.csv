@@ -1,4 +1,4 @@
-zone_id,name,population,socio_economic_index,num_clinics,avg_travel_time_clinic_min
+zone_id,zone_display_name,population,socio_economic_index,num_clinics,avg_travel_time_clinic_min
 ZoneA,Northwood District,12500,0.65,2,15
 ZoneB,Southville Area,21000,0.42,1,28
 ZoneC,Eastgate Community,17500,0.78,3,12
