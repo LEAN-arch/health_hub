@@ -49,7 +49,7 @@ load_css(app_config.STYLE_CSS_PATH) # <--- CORRECTED HERE
 
 
 # --- App Header ---
-header_cols = st.columns([0.08, 0.92]) 
+header_cols = st.columns([0.0, 0.92]) 
 
        
 
