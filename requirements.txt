@@ -5,6 +5,7 @@ geopandas==0.13.2 # Or a recent stable version
 plotly==5.18.0    # Or a recent stable version
 shapely~=2.0.1    # Often a dependency for geopandas, good to specify
 Fiona==1.9.4
+matplotlib>=3.7.0 # Add matplotlib, specify a version or range
 
 # For GeoPandas, it's often better to let its dependencies resolve naturally,
 # but pinning can help if there are issues.
