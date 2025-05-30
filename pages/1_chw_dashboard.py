@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @st.cache_resource 
 def load_css(): 
-    if os.path.exists(app_config.STYLE_CSS_PATH): # Use STYLE_CSS_PATH
+    if os.path.exists(app_config.STYLE_CSS_PATH):
         with open(app_config.STYLE_CSS_PATH) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
             logger.info("CHW Dashboard: CSS loaded successfully.")
@@ -56,48 +56,65 @@ else:
     # --- Sidebar Filters ---
     st.sidebar.header("🗓️ CHW Filters") 
     
-    min_date_available_chw = pd.NaT
-    max_date_available_chw = pd.NaT
-    default_selected_date_chw = pd.Timestamp('today').date()
+    min_date_available_chw = None
+    max_date_available_chw = None
+    default_selected_date_chw = pd.Timestamp('today').date() # Fallback
 
-    if 'date' in health_df_chw_main.columns and health_df_chw_main['date'].notna().any():
+    if 'date' in health_df_chw_main.columns and not health_df_chw_main.empty:
         # Ensure 'date' is datetime64[ns] before .min()/.max()
         if not pd.api.types.is_datetime64_ns_dtype(health_df_chw_main['date']):
              health_df_chw_main['date'] = pd.to_datetime(health_df_chw_main['date'], errors='coerce')
         
-        # Drop NaT values from date column if any resulted from coercion
-        valid_dates_chw = health_df_chw_main['date'].dropna()
+        valid_dates_chw = health_df_chw_main['date'].dropna() 
         if not valid_dates_chw.empty:
             min_date_available_chw = valid_dates_chw.min().date()
             max_date_available_chw = valid_dates_chw.max().date()
-            default_selected_date_chw = max_date_available_chw 
+            default_selected_date_chw = max_date_available_chw # Default to the LATEST date WITH data
+        else:
+             logger.warning("CHW Dashboard: All 'date' values became NaT after conversion. Using system date fallback.")
     
-    if pd.isna(min_date_available_chw) or pd.isna(max_date_available_chw): # Fallback if dates couldn't be determined
-        logger.warning("CHW Dashboard: 'date' column issues in health_df or no valid dates. Using default date range for filter.")
+    if min_date_available_chw is None: 
+        logger.warning("CHW Dashboard: 'date' column missing or no valid dates. Using system date fallback for min/max.")
         min_date_available_chw = pd.Timestamp('today').date() - pd.Timedelta(days=90)
         max_date_available_chw = pd.Timestamp('today').date()
-        default_selected_date_chw = max_date_available_chw # Default to today if no max date from data
+        default_selected_date_chw = max_date_available_chw
     
     if min_date_available_chw > max_date_available_chw: 
         min_date_available_chw = max_date_available_chw
-
+        if default_selected_date_chw > max_date_available_chw:
+            default_selected_date_chw = max_date_available_chw
+    if default_selected_date_chw < min_date_available_chw:
+        default_selected_date_chw = min_date_available_chw
+    if default_selected_date_chw > max_date_available_chw:
+        default_selected_date_chw = max_date_available_chw
 
     selected_view_date_chw = st.sidebar.date_input(
         "View Data For Date:",
-        value=default_selected_date_chw,
+        value=default_selected_date_chw, 
         min_value=min_date_available_chw,
         max_value=max_date_available_chw,
-        key="chw_daily_view_date_selector_final", # Unique key
+        key="chw_daily_view_date_selector_final_v4", 
         help="Select the date for which you want to view daily summaries, tasks, and patient alerts."
     )
 
     current_day_chw_df = pd.DataFrame() 
     if selected_view_date_chw and 'date' in health_df_chw_main.columns and pd.api.types.is_datetime64_ns_dtype(health_df_chw_main['date']):
-        health_df_chw_main['date_obj_chw'] = health_df_chw_main['date'].dt.date
-        current_day_chw_df = health_df_chw_main[health_df_chw_main['date_obj_chw'] == selected_view_date_chw].copy()
+        # Ensure 'date_obj_chw' for filtering is created/refreshed if needed
+        # Check if 'date_obj_chw' exists AND its first non-NaN element is a date object.
+        needs_date_obj_creation = True
+        if 'date_obj_chw' in health_df_chw_main.columns and not health_df_chw_main.empty:
+            first_valid_date_obj = health_df_chw_main['date_obj_chw'].dropna().iloc[0] if not health_df_chw_main['date_obj_chw'].dropna().empty else None
+            if first_valid_date_obj is not None and isinstance(first_valid_date_obj, pd.Timestamp.date().__class__): # Check type of datetime.date
+                needs_date_obj_creation = False
+        
+        if needs_date_obj_creation:
+            health_df_chw_main['date_obj_chw'] = health_df_chw_main['date'].dt.date
+        
+        # Filter after ensuring 'date_obj_chw' is correct type and not NaT
+        mask_filter_chw = (health_df_chw_main['date_obj_chw'] == selected_view_date_chw) & (health_df_chw_main['date_obj_chw'].notna())
+        current_day_chw_df = health_df_chw_main[mask_filter_chw].copy()
     
     logger.debug(f"CHW Dashboard: Data for selected date {selected_view_date_chw} has {len(current_day_chw_df)} rows.")
-
 
     chw_daily_kpis = get_chw_summary(current_day_chw_df) 
     logger.debug(f"CHW Daily KPIs for {selected_view_date_chw}: {chw_daily_kpis}")
@@ -204,7 +221,7 @@ else:
             )
             try:
                 csv_chw_tasks = task_df_display.to_csv(index=False).encode('utf-8')
-                st.download_button(label="📥 Download Task List (CSV)", data=csv_chw_tasks, file_name=f"chw_tasks_{selected_view_date_chw.strftime('%Y%m%d')}.csv", mime="text/csv", key="chw_task_list_download_button_final") # Incremented key
+                st.download_button(label="📥 Download Task List (CSV)", data=csv_chw_tasks, file_name=f"chw_tasks_{selected_view_date_chw.strftime('%Y%m%d')}.csv", mime="text/csv", key="chw_task_list_download_button_final_v3") 
             except Exception as e_csv_download_chw: 
                 logger.error(f"CHW Dashboard: Error preparing task list for CSV download: {e_csv_download_chw}", exc_info=True)
                 st.warning("Could not prepare the task list for download at this time.")
@@ -217,15 +234,12 @@ else:
     trend_period_end_date_chw = selected_view_date_chw
     trend_period_start_date_chw = trend_period_end_date_chw - pd.Timedelta(days=app_config.DEFAULT_DATE_RANGE_DAYS_TREND - 1)
     
-    # The main DF (health_df_chw_main) already has 'date_obj_chw' if 'date' was valid.
-    # Or it was created from valid 'date' column earlier in the script.
-    # We rely on 'date' being datetime64[ns] and 'date_obj_chw' being date objects for filtering.
-
     chw_trend_df_source = pd.DataFrame()
-    if 'date_obj_chw' in health_df_chw_main.columns: # If date_obj was successfully created
+    if 'date_obj_chw' in health_df_chw_main.columns: 
         chw_trend_df_source = health_df_chw_main[
             (health_df_chw_main['date_obj_chw'] >= trend_period_start_date_chw) &
-            (health_df_chw_main['date_obj_chw'] <= trend_period_end_date_chw)
+            (health_df_chw_main['date_obj_chw'] <= trend_period_end_date_chw) &
+            (health_df_chw_main['date_obj_chw'].notna()) 
         ].copy()
     
     logger.debug(f"CHW Page: Trend DF source has {len(chw_trend_df_source)} rows for period {trend_period_start_date_chw} to {trend_period_end_date_chw}.")
@@ -252,6 +266,6 @@ else:
                     y_axis_title="Number of Patients Visited", height=app_config.COMPACT_PLOT_HEIGHT,
                     show_anomalies=True, date_format="%d %b"
                 ), use_container_width=True)
-            else: st.caption("No CHW visits trend data available for this period.")
+            else: st.caption("No CHW visits trend data available for this period (ensure 'chw_visit' column has data).")
     else:
         st.info(f"Not enough historical data (min {app_config.DEFAULT_DATE_RANGE_DAYS_TREND} days needed) ending on {selected_view_date_chw.strftime('%Y-%m-%d')} for overall trends display.")
