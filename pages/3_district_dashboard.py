@@ -80,6 +80,7 @@ st.markdown("**Strategic Population Health Insights, Resource Allocation, and En
 st.markdown("---")
 
 # --- Sidebar Filters for Trend Date Range ---
+st.sidebar.image("assets//DNA-DxBrand.png", width=200)
 st.sidebar.header("🗓️ District Filters")
 
 all_potential_dates_dist = [] 
