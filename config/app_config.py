@@ -21,7 +21,7 @@ APP_LOGO = os.path.join(ASSETS_DIR, "logo.png") # Ensure this logo.png exists in
 APP_TITLE = "Community Health Intelligence Hub"
 APP_VERSION = "2.0.2" # Incremented version
 APP_FOOTER = f"© {pd.Timestamp('now').year} Health Informatics Initiative. All Rights Reserved."
-CONTACT_EMAIL = "support@healthhub-demo.com"
+CONTACT_EMAIL = "synergydx.mystrikinglycom"
 CACHE_TTL_SECONDS = 3600 # Cache data for 1 hour
 
 # Dashboard specific settings
