@@ -1,28 +1,22 @@
 patient_id,date,condition,test_type,test_result,test_turnaround_days,test_date,item,quantity_dispensed,stock_on_hand,consumption_rate_per_day,zone_id,ai_risk_score,avg_daily_steps,avg_spo2,min_spo2_pct,max_skin_temp_celsius,fall_detected_today,clinic_id,physician_id,notes,hpv_status,hiv_viral_load,chw_visit,referral_status,referral_date,tb_contact_traced,gender,age,resting_heart_rate,avg_hrv,avg_sleep_duration_hrs,sleep_score_pct,stress_level_score
-P001,2023-10-01,TB,Sputum-AFB,Positive,3,2023-09-28,TB-Regimen A,1,100,2,ZoneA,85,3500,97,95,37.5,0,C01,DOC001,Follow up required,Negative,,1,Pending,,0,Male,45,65,50,6.5,70,5
-P002,2023-10-01,Malaria,RDT-Malaria,Positive,0,2023-10-01,ACT Tablets,1,50,1,ZoneB,70,6200,98,96,37.2,0,C02,DOC002,,Negative,,1,Completed,2023-09-25,1,Female,30,70,45,7.2,78,3
-P003,2023-10-02,Wellness Visit,HIV-Rapid,Negative,1,2023-10-01,ARV-Regimen B,0,75,0.5,ZoneA,30,8100,99,98,36.8,0,C01,DOC001,,Negative,,0,N/A,,,Male,62,60,55,8.0,85,2
-P004,2023-10-02,Pneumonia,Chest X-Ray,Positive,2,2023-09-30,Amoxicillin Syrup,1,200,5,ZoneC,65,4500,95,93,38.5,1,C03,DOC003,,Negative,,1,Pending,2023-10-01,0,Female,25,75,40,5.0,60,6
-P005,2023-10-03,TB,Sputum-GeneXpert,Positive,2,2023-10-01,TB-Regimen A,0,98,2,ZoneA,88,3400,96,94,38.1,0,C01,DOC001,Resistant strain suspected,Negative,,1,Initiated,2023-10-02,1,Male,55,68,48,6.0,65,7
-P006,2023-10-03,STI-Syphilis,RPR,Positive,1,2023-10-02,Penicillin G,1,30,0.2,ZoneB,75,5800,97,95,37.0,0,C02,DOC002,,Negative,,1,Completed,2023-09-28,0,Female,38,72,42,7.5,80,4
-P007,2023-10-04,Anemia,Hemoglobin Test,Low,0,2023-10-04,Iron-Folate Tabs,1,150,3,ZoneC,55,7500,98,97,36.9,0,C03,DOC003,,Negative,,0,N/A,,,Male,28,66,52,6.8,72,3
-P008,2023-10-05,HIV-Positive,HIV-ViralLoad,"2500",7,2023-09-28,ARV-Regimen B,1,73,0.5,ZoneA,92,4200,96,94,38.2,0,C01,DOC001,Initiate adherence counseling,Positive,2500,1,Pending,2023-10-04,0,Female,50,78,38,5.5,58,8
-P009,2023-10-06,Dengue,NS1 Antigen,Positive,1,2023-10-05,,0,0,0,ZoneB,68,5300,97,96,37.4,0,C02,DOC002,,Negative,,0,Pending,2023-10-05,0,Male,33,70,46,7.0,75,4
-P010,2023-10-06,STI-Gonorrhea,NAAT-GC,Positive,3,2023-10-03,Ceftriaxone Inj,1,20,0.1,ZoneC,78,4900,96,95,37.6,0,C03,DOC003,,Negative,,1,Initiated,2023-10-04,0,Female,29,74,41,6.2,68,6
-P001,2023-10-07,TB,Follow-up,N/A,0,2023-10-07,TB-Regimen A,0,96,2,ZoneA,80,3700,97,95,37.3,0,C01,DOC001,Condition improving,Negative,,1,Follow-up,2023-10-06,1,Male,45,64,51,6.7,73,4
-P011,2023-10-08,Wellness Visit,PapSmear,Normal,5,2023-10-03,Wellness Pack,0,0,0,ZoneA,15,10500,99,98,36.7,0,C01,DOC001,,Normal,,0,N/A,,,Female,42,58,60,8.2,90,1
-P012,2023-10-09,Malaria,RDT-Malaria,Negative,0,2023-10-09,ACT Tablets,0,46,1,ZoneB,40,7800,98,97,37.1,0,C02,DOC002,,Negative,,0,Completed,2023-10-07,0,Male,35,62,53,7.8,82,2
-P003,2023-10-10,HIV-Positive,CD4 Count,"350",4,2023-10-06,ARV-Regimen B,0,72,0.5,ZoneA,50,8000,99,98,37.0,0,C01,DOC001,Switched from checkup,Positive,350,0,Follow-up,2023-10-08,0,Male,62,61,54,7.9,84,3
-P013,2023-10-11,Pneumonia,Sputum Culture,Pending,0,2023-10-11,Amoxicillin Syrup,0,190,5,ZoneC,66,4600,95,94,37.8,0,C03,DOC003,Awaiting results,Negative,,0,Pending,2023-10-11,0,Female,48,76,39,5.2,62,7
-P005,2023-10-12,TB,Follow-up,N/A,0,2023-10-12,TB-Regimen A,0,90,2,ZoneA,70,3800,97,95,37.1,0,C01,DOC001,Monitoring side effects,Negative,,1,Follow-up,2023-10-10,1,Male,55,67,49,6.1,67,6
-P014,2023-10-13,Hypertension,BP Check,High,0,2023-10-13,Amlodipine,1,120,1.5,ZoneD,72,5500,98,96,37.2,0,C04,DOC004,New diagnosis HTN,Negative,,1,Pending,2023-10-13,0,Female,58,80,35,5.8,55,7
-P015,2023-10-14,Diabetes,Glucose Test,High,1,2023-10-13,Metformin,1,90,3,ZoneB,60,6300,97,95,37.3,0,C02,DOC002,Dietary advice given,Negative,,1,Completed,2023-10-12,0,Male,67,70,44,7.1,77,5
-P008,2023-10-15,HIV-Positive,Follow-up,N/A,0,2023-10-15,ARV-Regimen B,0,70,0.5,ZoneA,90,4100,96,94,38.0,0,C01,DOC001,Adherence improving,Positive,1200,1,Follow-up,2023-10-14,0,Female,50,77,37,5.6,60,8
-P016,2023-10-16,STI-Chlamydia,NAAT-CT,Positive,2,2023-10-14,Azithromycin,1,40,0.5,ZoneC,65,5900,97,96,37.0,0,C03,DOC003,Partner notification,Negative,,1,Initiated,2023-10-15,0,Male,22,68,47,7.3,79,4
-P017,2023-10-17,TB,Sputum-AFB,Positive,3,2023-10-14,TB-Regimen B,1,80,1.8,ZoneB,82,3900,97,95,37.7,0,C02,DOC002,New case from Zone B,Negative,,1,Pending,2023-10-17,0,Female,31,73,43,6.3,66,6
-P018,2023-10-18,Wellness Visit,Cholesterol Test,Borderline,1,2023-10-17,,0,0,0,ZoneD,45,7200,98,97,36.9,0,C04,DOC004,,Negative,,0,N/A,,,Male,53,63,58,7.7,83,2
-P019,2023-10-19,Anemia,Ferritin Test,Low,2,2023-10-17,Iron Sucrose IV,1,25,0.3,ZoneA,70,4000,95,93,37.5,0,C01,DOC001,Severe anemia,Negative,,1,Initiated,2023-10-18,0,Female,39,79,36,5.7,57,7
-P020,2023-10-20,Pneumonia,Follow-up,Improving,1,2023-10-19,Amoxicillin Syrup,0,180,5,ZoneB,55,5000,97,96,37.1,0,C02,DOC002,,Negative,,0,Completed,2023-10-18,0,Male,65,72,45,6.6,71,5
-P021,2023-10-21,Hypertension,Follow-up,Stable,0,2023-10-21,Lisinopril,0,50,0.5,ZoneA,40,9200,99,98,36.5,0,C01,DOC001,BP controlled,Negative,,0,N/A,,,Female,68,60,59,8.1,88,2
-P022,2023-10-22,Diabetes,HbA1c,7.5,3,2023-10-19,Insulin Pens,1,60,1,ZoneB,70,4800,96,94,37.2,0,C02,DOC002,Adjusting insulin,Negative,,1,Pending,2023-10-22,0,Male,52,72,42,5.9,63,7
+P101,2025-03-05,TB,Sputum-AFB,Positive,2,2025-03-03,TB-Regimen A,1,120,2.1,ZoneA,78,4200,96,94,37.8,0,C01,DOC001,New TB case,Negative,,1,Pending,,0,Male,52,70,45,6.2,68,6
+P102,2025-03-10,Malaria,RDT-Malaria,Positive,0,2025-03-10,ACT Tablets,1,60,1.5,ZoneB,65,5800,98,97,37.1,0,C02,DOC002,Fever and chills,Negative,,1,Completed,2025-03-08,1,Female,28,68,50,7.5,82,3
+P103,2025-03-15,Wellness Visit,HIV-Rapid,Negative,1,2025-03-14,Multivitamins,1,200,0.5,ZoneA,25,9500,99,98,36.5,0,C01,DOC001,Annual checkup,Negative,,0,N/A,,,Female,45,60,58,8.1,88,2
+P104,2025-03-20,Pneumonia,Chest X-Ray,Positive,1,2025-03-19,Amoxicillin Syrup,1,150,4.5,ZoneC,72,3900,94,92,38.6,0,C03,DOC003,Cough and difficulty breathing,Negative,,1,Pending,2025-03-20,0,Male,68,78,38,5.5,60,7
+P105,2025-03-25,Hypertension,BP Check,High,0,2025-03-25,Amlodipine,1,90,1.0,ZoneD,60,6700,97,96,37.0,0,C04,DOC004,Routine BP check,Negative,,0,Follow-up,2025-03-24,0,Female,59,75,40,6.9,75,5
+P106,2025-04-02,Diabetes,Glucose Test,High,1,2025-04-01,Metformin,1,100,2.5,ZoneE,68,5300,96,95,37.2,0,C05,DOC005,Follow-up diabetes,Negative,,0,Initiated,2025-04-02,0,Male,61,72,43,6.4,70,6
+P107,2025-04-08,Anemia,Hemoglobin Test,Low,0,2025-04-08,Iron-Folate Tabs,1,180,2.8,ZoneF,58,7100,97,95,36.8,0,C06,DOC006,Pale and fatigued,Negative,,1,Completed,2025-04-07,0,Female,33,65,52,7.1,78,4
+P108,2025-04-12,STI-Gonorrhea,NAAT-GC,Positive,3,2025-04-09,Ceftriaxone Inj,1,25,0.3,ZoneA,75,4800,95,93,37.7,0,C01,DOC001,Partner referral,Negative,,1,Pending,2025-04-12,0,Male,27,70,46,5.9,65,7
+P109,2025-04-18,HIV-Positive,HIV-ViralLoad,"1500",6,2025-04-12,ARV-Regimen C,1,80,0.8,ZoneB,85,3500,94,92,38.1,1,C02,DOC002,New ART initiation,Positive,1500,1,Initiated,2025-04-15,0,Female,39,80,35,5.2,58,8
+P110,2025-04-25,Wellness Visit,PapSmear,Normal,4,2025-04-21,Calcium Supplement,1,50,0.2,ZoneC,20,8800,99,98,36.6,0,C03,DOC003,Routine screening,Normal,,0,N/A,,,Female,50,62,55,7.8,85,2
+P111,2025-05-01,TB,Sputum-GeneXpert,Positive,1,2025-04-30,TB-Regimen B,1,70,1.9,ZoneD,82,3800,95,93,37.9,0,C04,DOC004,Persistent cough,Negative,,1,Pending,2025-05-01,0,Male,48,73,41,6.0,67,6
+P112,2025-05-05,Malaria,Microscopy-Malaria,Negative,1,2025-05-04,Prophylaxis,0,30,0.0,ZoneE,35,6900,98,97,37.0,0,C05,DOC005,Travel history,Negative,,0,Completed,2025-05-04,0,Female,31,67,53,7.3,80,3
+P113,2025-05-10,Hypertension,Follow-up,Stable,0,2025-05-10,Lisinopril,0,100,1.2,ZoneF,55,7600,97,96,36.9,0,C06,DOC006,BP check,Negative,,0,Follow-up,2025-05-09,0,Male,66,68,49,6.8,76,4
+P114,2025-05-15,Pneumonia,Chest X-Ray,Improving,1,2025-05-14,Co-amoxiclav,0,40,3.0,ZoneA,45,5200,97,96,37.3,0,C01,DOC001,Follow-up X-ray,Negative,,0,Completed,2025-05-13,0,Female,72,70,44,6.1,69,5
+P115,2025-05-20,STI-Chlamydia,Test of Cure,Negative,3,2025-05-17,,,0,0,0,ZoneB,30,8500,99,98,36.7,0,C02,DOC002,Cured,Negative,,0,Completed,2025-05-18,0,Male,24,63,57,8.0,88,2
+P116,2025-05-25,Diabetes,Eye Exam,No Retinopathy,5,2025-05-20,,,0,0,0,ZoneC,40,6100,98,97,37.1,0,C03,DOC003,Annual eye check,Negative,,0,N/A,,,Female,55,66,51,7.2,79,4
+P117,2025-05-28,Dengue,IgM Test,Positive,2,2025-05-26,ORS Sachets,1,50,1.0,ZoneD,70,4300,96,94,38.2,0,C04,DOC004,High fever, joint pain,Negative,,1,Pending,2025-05-28,0,Male,19,77,39,5.7,62,7
+P118,2025-05-29,Anemia,Follow-up,Normal,0,2025-05-29,Iron-Folate Tabs,0,120,3.0,ZoneE,28,9000,99,98,36.6,0,C05,DOC005,Hemoglobin normalized,Negative,,0,Completed,2025-05-28,0,Female,37,61,59,8.3,90,1
+P119,2025-05-30,TB,Sputum-AFB,Pending,0,2025-05-30,,,0,0,0,ZoneA,80,3000,95,93,38.0,0,C01,DOC001,Contact of P111,Negative,,1,Pending,2025-05-30,0,Male,33,74,42,5.4,59,8
+P120,2025-05-30,HIV-Positive,Viral Load,"<50",7,2025-05-23,ARV-Regimen D,1,90,0.7,ZoneF,30,7800,98,97,37.0,0,C06,DOC006,Undetectable,Positive,<50,1,Completed,2025-05-27,0,Female,41,64,54,7.6,83,3
 
