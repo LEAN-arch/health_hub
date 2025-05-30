@@ -131,7 +131,8 @@ with capabilities_cols[2]:
 # --- Sidebar Content Customization ---
 st.sidebar.markdown("---") 
 if os.path.exists(app_config.APP_LOGO):
-    st.sidebar.image(app_config.APP_LOGO, width=60, use_column_width='auto') 
+    st.sidebar.image(app_config.APP_LOGO, width=60, use_column_width='auto')
+    st.sidebar.image("assets//DNA-DxBrand.png", width=400)
 st.sidebar.header(f"{app_config.APP_TITLE.split(' ')[0]} Hub") 
 st.sidebar.caption(f"Version {app_config.APP_VERSION}")
 st.sidebar.markdown("---")
