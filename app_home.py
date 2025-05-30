@@ -55,7 +55,7 @@ with header_cols[0]:
         st.image(app_config.APP_LOGO, width=70) 
     else:
         st.markdown("❤️", unsafe_allow_html=True) 
-        st.markdown.image("assets//DNA-DxBrand.png", width=300)
+        st.markdown("assets//DNA-DxBrand.png", width=300)
 
 with header_cols[1]:
     st.title(app_config.APP_TITLE)
