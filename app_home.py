@@ -8,7 +8,7 @@ import logging
 # --- Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(
     page_title=f"{app_config.APP_TITLE} - Home",
-    page_icon=app_config.APP_LOGO if os.path.exists(app_config.APP_LOGO) else "❤️", 
+    page_icon=app_config.APP_LOGO if os.path.exists(app_config.APP_LOGO) , 
     layout="wide",
     initial_sidebar_state="expanded", 
     menu_items={
