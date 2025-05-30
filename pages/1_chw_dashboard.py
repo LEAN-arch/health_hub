@@ -54,7 +54,7 @@ else:
     st.markdown("---") 
 
     # --- Sidebar Filters ---
-    st.sidebar.image("assets//DNA-DxBrand.png", width=300)
+    st.sidebar.image("assets//DNA-DxBrand.png", width=200)
     st.sidebar.header("🗓️ CHW Filters") 
     
     min_date_available_chw = None
