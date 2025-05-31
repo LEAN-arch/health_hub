@@ -219,7 +219,7 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
             title="Active TB Cases", 
             value=str(tb_total_burden), 
             icon=tb_icon_html_dist, 
-            icon_is_html=True, 
+            icon_is_html=True,  # <<< THIS IS THE KEY LINE
             status="High" if tb_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_TB_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 50) else "Moderate", 
             help_text="Total active TB cases identified across the district (latest aggregates)."
         )
@@ -230,18 +230,18 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
             title="Active Malaria Cases", 
             value=str(malaria_total_burden), 
             icon=malaria_icon_html_dist, 
-            icon_is_html=True, 
+            icon_is_html=True,  # <<< THIS IS THE KEY LINE
             status="High" if malaria_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 100) else "Moderate",
             help_text="Total active Malaria cases identified across the district (latest aggregates)."
         )
-    with kpi_cols_row2_dist[2]:
+    with kpi_cols_row2_dist[2]: # This one uses a standard emoji, so icon_is_html is False (default)
         avg_steps_district = district_overall_kpis.get('population_weighted_avg_steps', 0.0)
-        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣", 
+        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣",
                         status="Bad Low" if avg_steps_district < (app_config.TARGET_DAILY_STEPS * 0.7) else "Moderate" if avg_steps_district < app_config.TARGET_DAILY_STEPS else "Good High",
                         help_text=f"Population-weighted average daily steps. Target: {app_config.TARGET_DAILY_STEPS:,.0f} steps.")
-    with kpi_cols_row2_dist[3]:
+    with kpi_cols_row2_dist[3]: # This one uses a standard emoji
         avg_co2_district_val = district_overall_kpis.get('avg_clinic_co2_district',0.0)
-        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨", 
+        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨",
                         status="High" if avg_co2_district_val > app_config.CO2_LEVEL_ALERT_PPM else "Moderate" if avg_co2_district_val > app_config.CO2_LEVEL_IDEAL_PPM else "Low",
                         help_text="District average of zonal mean CO2 levels in clinics (unweighted average of zonal means).")
 else:
