@@ -36,16 +36,16 @@ logger = logging.getLogger(__name__)
 
 # --- Function to load CSS ---
 @st.cache_resource
-def load_css(_app_config_param): # Define it to take app_config
-    if os.path.exists(_app_config_param.STYLE_CSS_PATH):
-        with open(_app_config_param.STYLE_CSS_PATH) as f:
+def load_css(_config_obj_page): # Use a unique param name if desired
+    if os.path.exists(_config_obj_page.STYLE_CSS_PATH):
+        with open(_config_obj_page.STYLE_CSS_PATH) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-            logger.info(f"Successfully loaded CSS from {_app_config_param.STYLE_CSS_PATH}")
+            logger.info(f"{_config_obj_page.APP_TITLE} Page: CSS loaded.") # Example of using another attr
     else:
-        logger.warning(f"CSS file not found at {_app_config_param.STYLE_CSS_PATH}. Styling may be affected.")
+        logger.warning(f"CSS file not found at {_config_obj_page.STYLE_CSS_PATH} for this page.")
 
 # Load custom CSS from configured path
-load_css(app_config.STYLE_CSS_PATH) # <--- CORRECTED HERE
+load_css(app_config) # <--- CORRECTED HERE
 
 
 # --- App Header ---
