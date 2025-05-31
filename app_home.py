@@ -35,14 +35,14 @@ logging.basicConfig(level=getattr(logging, app_config.LOG_LEVEL.upper(), logging
 logger = logging.getLogger(__name__) 
 
 # --- Function to load CSS ---
-@st.cache_resource 
-def load_css(css_file_path):
-    if os.path.exists(css_file_path):
-        with open(css_file_path) as f:
+@st.cache_resource
+def load_css(_app_config_param): # Define it to take app_config
+    if os.path.exists(_app_config_param.STYLE_CSS_PATH):
+        with open(_app_config_param.STYLE_CSS_PATH) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-            logger.info(f"Successfully loaded CSS from {css_file_path}")
+            logger.info(f"Successfully loaded CSS from {_app_config_param.STYLE_CSS_PATH}")
     else:
-        logger.warning(f"CSS file not found at {css_file_path}. Styling may be affected. Default styles will be used.")
+        logger.warning(f"CSS file not found at {_app_config_param.STYLE_CSS_PATH}. Styling may be affected.")
 
 # Load custom CSS from configured path
 load_css(app_config.STYLE_CSS_PATH) # <--- CORRECTED HERE
