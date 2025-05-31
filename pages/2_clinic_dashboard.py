@@ -212,7 +212,7 @@ with kpi_cols_clinic_services[2]:
 with kpi_cols_clinic_services[3]:
     hiv_tests_count = clinic_service_kpis.get('hiv_tests_conclusive_period', 0)
     render_kpi_card("HIV Tests Conducted", str(hiv_tests_count), 
-                    "🦠🧪",  # <<< USING TWO EMOJIS AS A SINGLE STRING
+                    "🧪",  # <<< USING TWO EMOJIS AS A SINGLE STRING
                     # icon_is_html=True, # NOT needed for direct emojis
                     status="Low" if hiv_tests_count < 20 else "Moderate", 
                     help_text="Number of unique patients with conclusive HIV test results in the period.")
