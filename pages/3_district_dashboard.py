@@ -130,7 +130,7 @@ if default_start_val_dist_trends > default_end_val_dist_trends : default_start_v
 
 selected_start_date_dist_trends, selected_end_date_dist_trends = st.sidebar.date_input(
     "Select Date Range for Trend Analysis:", value=[default_start_val_dist_trends, default_end_val_dist_trends],
-    min_value=min_date_for_trends_dist, max_value=max_date_for_trends_dist, key="district_trends_date_selector_final_v5", 
+    min_value=min_date_for_trends_dist, max_value=max_date_for_trends_dist, key="district_trends_date_selector_final_v7", # Key incremented
     help="This date range applies to time-series trend charts for health and environmental data."
 )
 
@@ -144,7 +144,7 @@ if selected_start_date_dist_trends and selected_end_date_dist_trends and health_
     if not temp_health_trends.empty:
         # Ensure date_obj_filter_trends is correctly typed as date objects
         date_col_is_date_type_trends_h = False
-        if 'date_obj_filter_trends' in temp_health_trends.columns and not temp_health_trends.empty and temp_health_trends['date_obj_filter_trends'].notna().any(): # Added check for any non-NA
+        if 'date_obj_filter_trends' in temp_health_trends.columns and not temp_health_trends.empty and temp_health_trends['date_obj_filter_trends'].notna().any(): 
             first_valid_h_trends = temp_health_trends['date_obj_filter_trends'].dropna().iloc[0] if not temp_health_trends['date_obj_filter_trends'].dropna().empty else None
             if first_valid_h_trends is not None and isinstance(first_valid_h_trends, pd.Timestamp.date().__class__):
                 date_col_is_date_type_trends_h = True
@@ -157,6 +157,7 @@ if selected_start_date_dist_trends and selected_end_date_dist_trends and health_
         filtered_health_for_trends = temp_health_trends[mask_health_trends].copy()
         logger.debug(f"District Health Trends: Filtered to {len(filtered_health_for_trends)} rows for {selected_start_date_dist_trends} to {selected_end_date_dist_trends}")
 
+
 filtered_iot_for_trends = pd.DataFrame(columns=iot_records_district_main.columns if iot_records_district_main is not None else [])
 if selected_start_date_dist_trends and selected_end_date_dist_trends and iot_records_district_main is not None and 'timestamp' in iot_records_district_main.columns and not iot_records_district_main.empty:
     temp_iot_trends = iot_records_district_main.copy()
@@ -165,9 +166,9 @@ if selected_start_date_dist_trends and selected_end_date_dist_trends and iot_rec
     temp_iot_trends.dropna(subset=['timestamp'], inplace=True)
     if not temp_iot_trends.empty:
         date_col_is_date_type_trends_i = False
-        if 'date_obj_filter_trends' in temp_iot_trends.columns and not temp_iot_trends.empty and temp_iot_trends['date_obj_filter_trends'].notna().any(): # Added check for any non-NA
+        if 'date_obj_filter_trends' in temp_iot_trends.columns and not temp_iot_trends.empty and temp_iot_trends['date_obj_filter_trends'].notna().any(): 
             first_valid_i_trends = temp_iot_trends['date_obj_filter_trends'].dropna().iloc[0] if not temp_iot_trends['date_obj_filter_trends'].dropna().empty else None
-            if first_valid_i_trends is not None and isinstance(first_val_i_trends, pd.Timestamp.date().__class__):
+            if first_valid_i_trends is not None and isinstance(first_valid_i_trends, pd.Timestamp.date().__class__): # Corrected variable name
                 date_col_is_date_type_trends_i = True
         if not date_col_is_date_type_trends_i:
             temp_iot_trends['date_obj_filter_trends'] = temp_iot_trends['timestamp'].dt.date
@@ -218,7 +219,7 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
             title="Active TB Cases", 
             value=str(tb_total_burden), 
             icon=tb_icon_html_dist, 
-            icon_is_html=True,  # <<< CRITICAL FIX ENSURED HERE
+            icon_is_html=True, 
             status="High" if tb_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_TB_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 50) else "Moderate", 
             help_text="Total active TB cases identified across the district (latest aggregates)."
         )
@@ -229,18 +230,18 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
             title="Active Malaria Cases", 
             value=str(malaria_total_burden), 
             icon=malaria_icon_html_dist, 
-            icon_is_html=True,  # <<< CRITICAL FIX ENSURED HERE
+            icon_is_html=True, 
             status="High" if malaria_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 100) else "Moderate",
             help_text="Total active Malaria cases identified across the district (latest aggregates)."
         )
     with kpi_cols_row2_dist[2]:
         avg_steps_district = district_overall_kpis.get('population_weighted_avg_steps', 0.0)
-        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣", # Standard emoji here
+        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣", 
                         status="Bad Low" if avg_steps_district < (app_config.TARGET_DAILY_STEPS * 0.7) else "Moderate" if avg_steps_district < app_config.TARGET_DAILY_STEPS else "Good High",
                         help_text=f"Population-weighted average daily steps. Target: {app_config.TARGET_DAILY_STEPS:,.0f} steps.")
     with kpi_cols_row2_dist[3]:
         avg_co2_district_val = district_overall_kpis.get('avg_clinic_co2_district',0.0)
-        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨", # Standard emoji here
+        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨", 
                         status="High" if avg_co2_district_val > app_config.CO2_LEVEL_ALERT_PPM else "Moderate" if avg_co2_district_val > app_config.CO2_LEVEL_IDEAL_PPM else "Low",
                         help_text="District average of zonal mean CO2 levels in clinics (unweighted average of zonal means).")
 else:
@@ -249,26 +250,39 @@ st.markdown("---")
 
 st.subheader("🗺️ Interactive Health & Environment Map of the District")
 if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty and 'geometry' in district_gdf_main_enriched.columns and not district_gdf_main_enriched.geometry.is_empty.all():
-    map_metric_options_config_dist = {
-        "Avg. AI Risk Score": {"col": "avg_risk_score", "colorscale": "Reds_r"}, "Total Key Infections": {"col": "total_active_key_infections", "colorscale": "OrRd_r"},
-        "Prevalence per 1,000 (Key Inf.)": {"col": "prevalence_per_1000", "colorscale": "YlOrRd_r"}, "Facility Coverage Score": {"col": "facility_coverage_score", "colorscale": "Greens"}, 
-        "Active TB Cases": {"col": "active_tb_cases", "colorscale": "Purples_r"}, "Active Malaria Cases": {"col": "active_malaria_cases", "colorscale": "Oranges_r"},
-        "HIV Positive Cases (Agg.)": {"col": "hiv_positive_cases", "colorscale": "Magenta_r"}, "Avg. Patient Steps (Zone)": {"col": "avg_daily_steps_zone", "colorscale": "Cividis"}, 
-        "Avg. Zone CO2 (Clinics)": {"col": "zone_avg_co2", "colorscale": "Sunsetdark_r"}, "Number of Clinics": {"col": "num_clinics", "colorscale": "Blues"}, "Socio-Economic Index": {"col": "socio_economic_index", "colorscale": "Tealgrn"}
-    }
+    map_metric_options_config_dist = {"Avg. AI Risk Score": {"col": "avg_risk_score", "colorscale": "Reds_r"}, "Total Key Infections": {"col": "total_active_key_infections", "colorscale": "OrRd_r"}, "Prevalence per 1,000 (Key Inf.)": {"col": "prevalence_per_1000", "colorscale": "YlOrRd_r"}, "Facility Coverage Score": {"col": "facility_coverage_score", "colorscale": "Greens"}, "Active TB Cases": {"col": "active_tb_cases", "colorscale": "Purples_r"}, "Active Malaria Cases": {"col": "active_malaria_cases", "colorscale": "Oranges_r"}, "HIV Positive Cases (Agg.)": {"col": "hiv_positive_cases", "colorscale": "Magenta_r"}, "Avg. Patient Steps (Zone)": {"col": "avg_daily_steps_zone", "colorscale": "Cividis"}, "Avg. Zone CO2 (Clinics)": {"col": "zone_avg_co2", "colorscale": "Sunsetdark_r"}, "Number of Clinics": {"col": "num_clinics", "colorscale": "Blues"}, "Socio-Economic Index": {"col": "socio_economic_index", "colorscale": "Tealgrn"}}
     if 'population' in district_gdf_main_enriched.columns:
         try: 
-            gdf_proj_area = district_gdf_main_enriched.to_crs(district_gdf_main_enriched.estimate_utm_crs()) if district_gdf_main_enriched.crs and not district_gdf_main_enriched.crs.is_geographic else district_gdf_main_enriched
-            if gdf_proj_area is not None and hasattr(gdf_proj_area, 'crs') and gdf_proj_area.crs is not None and not gdf_proj_area.crs.is_geographic: # Check again after potential projection
-                 district_gdf_main_enriched.loc[:, 'area_sqkm'] = gdf_proj_area.geometry.area / 1_000_000
-                 district_gdf_main_enriched.loc[:, 'population_density'] = district_gdf_main_enriched.apply(lambda r: r['population'] / r['area_sqkm'] if pd.notna(r.get('area_sqkm')) and r.get('area_sqkm',0)>0 and pd.notna(r.get('population')) else 0, axis=1)
+            gdf_proj_area_map = district_gdf_main_enriched.copy() # Create a copy for reprojection
+            if gdf_proj_area_map.crs and not gdf_proj_area_map.crs.is_geographic: # If already projected
+                pass # Area can be calculated directly
+            elif gdf_proj_area_map.crs and gdf_proj_area_map.crs.is_geographic: # If geographic, try to project
+                utm_crs = gdf_proj_area_map.estimate_utm_crs()
+                if utm_crs:
+                    gdf_proj_area_map = gdf_proj_area_map.to_crs(utm_crs)
+                else: # Could not estimate UTM, skip area calculation
+                    logger.warning("Map: Could not estimate UTM CRS for area calculation. Population density will be NaN.")
+                    district_gdf_main_enriched.loc[:,'area_sqkm'] = np.nan # Assign NaN to the original GDF
+            else: # No CRS information
+                 logger.warning("Map: No CRS information on GeoDataFrame. Population density will be NaN.")
+                 district_gdf_main_enriched.loc[:,'area_sqkm'] = np.nan
+
+            # Calculate area only if it has a projected CRS and geometry
+            if hasattr(gdf_proj_area_map, 'crs') and gdf_proj_area_map.crs is not None and not gdf_proj_area_map.crs.is_geographic:
+                 district_gdf_main_enriched.loc[:, 'area_sqkm'] = gdf_proj_area_map.geometry.area / 1_000_000
+                 district_gdf_main_enriched.loc[:, 'population_density'] = district_gdf_main_enriched.apply(
+                    lambda r: r['population'] / r['area_sqkm'] if pd.notna(r.get('area_sqkm')) and r.get('area_sqkm',0)>0 and pd.notna(r.get('population')) else 0, 
+                    axis=1
+                )
                  map_metric_options_config_dist["Population Density (Pop/SqKm)"] = {"col": "population_density", "colorscale": "Plasma_r"}
-            else: logger.warning("Map: GDF still geographic or no CRS after attempting projection; population density not calculated."); district_gdf_main_enriched.loc[:,'population_density'] = np.nan
-        except Exception as e_map_area: logger.warning(f"Map: Could not calculate area/pop density for map metric options: {e_map_area}", exc_info=True); district_gdf_main_enriched.loc[:,'population_density'] = np.nan
+            elif 'population_density' not in district_gdf_main_enriched.columns: # Ensure column exists even if not calculated
+                district_gdf_main_enriched.loc[:,'population_density'] = np.nan
+
+        except Exception as e_map_area_calc_new: logger.warning(f"Map: Could not calculate area/pop density for map metric options: {e_map_area_calc_new}", exc_info=True); district_gdf_main_enriched.loc[:,'population_density'] = np.nan
 
     available_map_metrics_for_select = { disp_name: details for disp_name, details in map_metric_options_config_dist.items() if details["col"] in district_gdf_main_enriched.columns and district_gdf_main_enriched[details["col"]].notna().any() }
     if available_map_metrics_for_select:
-        selected_map_metric_display_name = st.selectbox("Select Metric to Visualize on Map:", list(available_map_metrics_for_select.keys()), key="district_interactive_map_metric_selector_final_v5", help="Choose a metric for spatial visualization.") # Key incremented
+        selected_map_metric_display_name = st.selectbox("Select Metric to Visualize on Map:", list(available_map_metrics_for_select.keys()), key="district_interactive_map_metric_selector_final_v6", help="Choose a metric for spatial visualization.")
         selected_map_metric_config = available_map_metrics_for_select.get(selected_map_metric_display_name)
         if selected_map_metric_config:
             map_val_col = selected_map_metric_config["col"]; map_colorscale = selected_map_metric_config["colorscale"]; hover_cols_for_map = ['name', 'population', map_val_col] 
@@ -336,7 +350,7 @@ with tab_dist_comparison:
                     try: styler_obj_comp = styler_obj_comp.background_gradient(subset=[col_name_to_style], cmap=cmap_gradient, axis=0)
                     except: pass 
             st.dataframe(styler_obj_comp, use_container_width=True, height=min(len(df_for_comp_table_display) * 45 + 60, 600))
-            st.subheader("Visual Comparison Chart"); selected_bar_metric_name_dist_comp_viz = st.selectbox("Select Metric for Bar Chart Comparison:", list(comp_table_metrics_dict.keys()), key="district_comp_barchart_final_v6")
+            st.subheader("Visual Comparison Chart"); selected_bar_metric_name_dist_comp_viz = st.selectbox("Select Metric for Bar Chart Comparison:", list(comp_table_metrics_dict.keys()), key="district_comp_barchart_final_v7") # Incremented key
             selected_bar_details_dist_comp_viz = comp_table_metrics_dict.get(selected_bar_metric_name_dist_comp_viz)
             if selected_bar_details_dist_comp_viz:
                 bar_col_for_comp_viz = selected_bar_details_dist_comp_viz["col"]; text_format_bar_comp_viz = selected_bar_details_dist_comp_viz.get("format", "{:.1f}").replace('{','').replace('}','').split(':')[-1]; sort_asc_bar_viz = "_r" not in selected_bar_details_dist_comp_viz.get("colorscale", "") 
@@ -355,7 +369,7 @@ with tab_dist_interventions:
             except : pass 
         if not available_criteria_for_intervention_dist: st.warning("Intervention criteria cannot be applied; relevant data columns may be missing from the enriched zone data.")
         else:
-            selected_criteria_names_interv = st.multiselect( "Select Criteria to Identify Priority Zones (Zones meeting ANY selected criteria will be shown):", options=list(available_criteria_for_intervention_dist.keys()), default=list(available_criteria_for_intervention_dist.keys())[0:min(2, len(available_criteria_for_intervention_dist))] if available_criteria_for_intervention_dist else [], key="district_intervention_criteria_multiselect_final_v3", help="Choose one or more criteria. Zones satisfying any of these will be listed." )
+            selected_criteria_names_interv = st.multiselect( "Select Criteria to Identify Priority Zones (Zones meeting ANY selected criteria will be shown):", options=list(available_criteria_for_intervention_dist.keys()), default=list(available_criteria_for_intervention_dist.keys())[0:min(2, len(available_criteria_for_intervention_dist))] if available_criteria_for_intervention_dist else [], key="district_intervention_criteria_multiselect_final_v4", help="Choose one or more criteria. Zones satisfying any of these will be listed." )
             if not selected_criteria_names_interv: st.info("Please select at least one criterion above to identify priority zones for potential interventions.")
             else:
                 final_intervention_mask_dist = pd.Series([False] * len(district_gdf_main_enriched), index=district_gdf_main_enriched.index)
