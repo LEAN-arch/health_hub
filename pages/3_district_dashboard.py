@@ -189,13 +189,16 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
     st.markdown("##### Key Disease Burdens & District Wellness / Environment")
     kpi_cols_row2_dist = st.columns(4)
     with kpi_cols_row2_dist[0]:
+        tb_icon_html_dist = "<img src='https://www.svgrepo.com/show/309948/lungs.svg' width='30' alt='TB'>" # Renamed for clarity
         tb_total_burden = district_overall_kpis.get('district_tb_burden_total', 0)
-        render_kpi_card("Active TB Cases", str(tb_total_burden), "<img src='https://www.svgrepo.com/show/309948/lungs.svg' width='30' alt='TB'>", icon_is_html=True,
+        render_kpi_card("Active TB Cases", str(tb_total_burden), tb_icon_html_dist, icon_is_html=True, # Ensure icon_is_html=True
                         status="High" if tb_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_TB_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 50) else "Moderate", 
                         help_text="Total active TB cases identified across the district (latest aggregates).")
     with kpi_cols_row2_dist[1]:
+        # --- THIS IS LIKELY THE ISSUE ---
+        malaria_icon_html_dist = "<img src='https://www.svgrepo.com/show/491020/mosquito.svg' width='30' alt='Malaria'>" # Renamed for clarity
         malaria_total_burden = district_overall_kpis.get('district_malaria_burden_total',0)
-        render_kpi_card("Active Malaria Cases", str(malaria_total_burden), "<img src='https://www.svgrepo.com/show/491020/mosquito.svg' width='30' alt='Malaria'>", icon_is_html=True,
+        render_kpi_card("Active Malaria Cases", str(malaria_total_burden), malaria_icon_html_dist, icon_is_html=True, # Ensure icon_is_html=True
                         status="High" if malaria_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 100) else "Moderate",
                         help_text="Total active Malaria cases identified across the district (latest aggregates).")
     with kpi_cols_row2_dist[2]:
