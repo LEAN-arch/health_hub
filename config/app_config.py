@@ -15,7 +15,7 @@ IOT_CLINIC_ENVIRONMENT_CSV = os.path.join(DATA_SOURCES_DIR, "iot_clinic_environm
 # Assets directory
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 STYLE_CSS_PATH = os.path.join(ASSETS_DIR, "style.css") # Renamed to avoid conflict if STYLE_CSS becomes a dict
-APP_LOGO = os.path.join(ASSETS_DIR, "logo.png") # Ensure this logo.png exists in assets
+APP_LOGO = os.path.join(ASSETS_DIR, "DNA-DxBrand.png") # Ensure this logo.png exists in assets
 
 # App Settings
 APP_TITLE = "Community Health Intelligence Hub"
