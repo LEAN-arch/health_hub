@@ -214,25 +214,33 @@ if district_gdf_main_enriched is not None and not district_gdf_main_enriched.emp
     with kpi_cols_row2_dist[0]:
         tb_icon_html_dist = "<img src='https://www.svgrepo.com/show/309948/lungs.svg' width='30' alt='TB Icon'>"
         tb_total_burden = district_overall_kpis.get('district_tb_burden_total', 0)
-        render_kpi_card("Active TB Cases", str(tb_total_burden), tb_icon_html_dist, 
-                        icon_is_html=True, 
-                        status="High" if tb_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_TB_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 50) else "Moderate", 
-                        help_text="Total active TB cases identified across the district (latest aggregates).")
+        render_kpi_card(
+            title="Active TB Cases", 
+            value=str(tb_total_burden), 
+            icon=tb_icon_html_dist, 
+            icon_is_html=True,  # <<< CRITICAL FIX ENSURED HERE
+            status="High" if tb_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_TB_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 50) else "Moderate", 
+            help_text="Total active TB cases identified across the district (latest aggregates)."
+        )
     with kpi_cols_row2_dist[1]:
         malaria_icon_html_dist = "<img src='https://www.svgrepo.com/show/491020/mosquito.svg' width='30' alt='Malaria Icon'>"
         malaria_total_burden = district_overall_kpis.get('district_malaria_burden_total',0)
-        render_kpi_card("Active Malaria Cases", str(malaria_total_burden), malaria_icon_html_dist, 
-                        icon_is_html=True, 
-                        status="High" if malaria_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 100) else "Moderate",
-                        help_text="Total active Malaria cases identified across the district (latest aggregates).")
+        render_kpi_card(
+            title="Active Malaria Cases", 
+            value=str(malaria_total_burden), 
+            icon=malaria_icon_html_dist, 
+            icon_is_html=True,  # <<< CRITICAL FIX ENSURED HERE
+            status="High" if malaria_total_burden > (len(district_gdf_main_enriched) * app_config.INTERVENTION_MALARIA_BURDEN_HIGH_THRESHOLD if district_gdf_main_enriched is not None and not district_gdf_main_enriched.empty else 100) else "Moderate",
+            help_text="Total active Malaria cases identified across the district (latest aggregates)."
+        )
     with kpi_cols_row2_dist[2]:
         avg_steps_district = district_overall_kpis.get('population_weighted_avg_steps', 0.0)
-        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣",
+        render_kpi_card("Avg. Patient Steps", f"{avg_steps_district:,.0f}", "👣", # Standard emoji here
                         status="Bad Low" if avg_steps_district < (app_config.TARGET_DAILY_STEPS * 0.7) else "Moderate" if avg_steps_district < app_config.TARGET_DAILY_STEPS else "Good High",
                         help_text=f"Population-weighted average daily steps. Target: {app_config.TARGET_DAILY_STEPS:,.0f} steps.")
     with kpi_cols_row2_dist[3]:
         avg_co2_district_val = district_overall_kpis.get('avg_clinic_co2_district',0.0)
-        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨",
+        render_kpi_card("Avg. Clinic CO2", f"{avg_co2_district_val:.0f} ppm", "💨", # Standard emoji here
                         status="High" if avg_co2_district_val > app_config.CO2_LEVEL_ALERT_PPM else "Moderate" if avg_co2_district_val > app_config.CO2_LEVEL_IDEAL_PPM else "Low",
                         help_text="District average of zonal mean CO2 levels in clinics (unweighted average of zonal means).")
 else:
