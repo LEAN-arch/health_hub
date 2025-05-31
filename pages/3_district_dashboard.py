@@ -21,14 +21,17 @@ st.set_page_config(page_title="District Dashboard - Health Hub", layout="wide", 
 logger = logging.getLogger(__name__) 
 
 @st.cache_resource 
-def load_css(_app_config): # Accept app_config as an argument
-    if os.path.exists(_app_config.STYLE_CSS_PATH): 
-        with open(_app_config.STYLE_CSS_PATH) as f: 
+def load_css(_app_config_param): # Function expects an argument
+    # --- THIS IS THE CORRECTED USAGE ---
+    if os.path.exists(_app_config_param.STYLE_CSS_PATH): 
+        with open(_app_config_param.STYLE_CSS_PATH) as f: 
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
             logger.info("District Dashboard: CSS loaded successfully.")
     else:
-        logger.warning(f"District Dashboard: CSS file not found at {_app_config.STYLE_CSS_PATH}. Default Streamlit styles will be used.")
-load_css()
+        logger.warning(f"District Dashboard: CSS file not found at {_app_config_param.STYLE_CSS_PATH}. Default Streamlit styles will be used.")
+
+# --- THIS IS THE CORRECTED CALL ---
+load_css(app_config) 
 
 # --- Data Loading (Cached for performance) ---
 @st.cache_data(ttl=app_config.CACHE_TTL_SECONDS, hash_funcs={
