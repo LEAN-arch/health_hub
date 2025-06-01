@@ -73,7 +73,7 @@ st.markdown("**Monitoring Service Efficiency, Quality of Care, Resource Manageme
 st.markdown("---")
 
 # --- Sidebar Filters & Date Range Setup ---
-st.sidebar.image("assets//DNA-DxBrand.png", width=200)
+st.sidebar.image("assets//DNA-DxBrand.png", width=230)
 st.sidebar.header("🗓️ Clinic Filters") 
 
 all_potential_dates = [] 
