@@ -79,7 +79,7 @@ st.markdown("---")
 
 # --- Sidebar ---
 if os.path.exists(app_config.APP_LOGO):
-    st.sidebar.image(app_config.APP_LOGO, use_column_width='auto')
+    st.sidebar.image(app_config.APP_LOGO, use_column_width='200')
     st.sidebar.markdown("---")
 
 st.sidebar.header("🗓️ District Filters")
